@@ -8,6 +8,8 @@ public class LeoneApplication {
 
     public static void main(String[] args) {
         SpringApplication.run(LeoneApplication.class, args);
+
+
     }
 
 }

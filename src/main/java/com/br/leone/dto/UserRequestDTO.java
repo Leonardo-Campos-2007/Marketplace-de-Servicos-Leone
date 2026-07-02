@@ -1,5 +1,6 @@
 package com.br.leone.dto;
 
+import com.br.leone.enums.Role;
 import com.br.leone.enums.TipoConta;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
@@ -30,4 +31,8 @@ public record UserRequestDTO(
         @NotNull(message = "Tipo de conta é obrigatório")
         TipoConta tipoConta
 
-) {}
+
+
+) {
+
+}
