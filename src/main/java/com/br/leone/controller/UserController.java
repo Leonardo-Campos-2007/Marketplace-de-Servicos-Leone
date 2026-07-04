@@ -2,6 +2,7 @@ package com.br.leone.controller;
 
 import com.br.leone.dto.UserRequestDTO;
 import com.br.leone.dto.UserResponseDTO;
+import com.br.leone.dto.UserUpdateRequestDTO;
 import com.br.leone.exception.UsuarioNaoEncontradoException;
 import com.br.leone.service.UserService;
 import jakarta.validation.Valid;
@@ -33,14 +34,13 @@ public class UserController {
 
     @GetMapping("/{id}")
     public ResponseEntity<UserResponseDTO> buscarPorId(@PathVariable Long id) {
-        return userService.buscarPorId(id)
-                .map(ResponseEntity::ok)
-                .orElseThrow(() -> new UsuarioNaoEncontradoException(id));
+        UserResponseDTO dto = userService.buscarPorId(id);
+        return ResponseEntity.ok(dto);
     }
 
     @PutMapping("/{id}")
     public ResponseEntity<UserResponseDTO> atualizarUsuario(@PathVariable Long id,
-                                                            @Valid @RequestBody UserRequestDTO dto) {
+                                                            @Valid @RequestBody UserUpdateRequestDTO dto) { // Alterado aqui
         return ResponseEntity.ok(userService.atualizar(id, dto));
     }
 
