@@ -8,6 +8,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 import org.springframework.security.access.AccessDeniedException;
+
 import java.util.HashMap;
 import java.util.Map;
 
@@ -81,6 +82,20 @@ public class GlobalExceptionHandler {
         return ResponseEntity
                 .status(HttpStatus.FORBIDDEN)
                 .body(Map.of("erro", ex.getMessage()));
+    }
+
+    @ExceptionHandler(PerfilPrestadorNaoEncontradoException.class)
+    public org.springframework.http.ResponseEntity<java.util.Map<String, String>> handlePerfilPrestadorNaoEncontrado(PerfilPrestadorNaoEncontradoException ex) {
+        return org.springframework.http.ResponseEntity
+                .status(org.springframework.http.HttpStatus.NOT_FOUND) // Status 404 Not Found
+                .body(java.util.Map.of("erro", ex.getMessage()));
+    }
+
+    @ExceptionHandler(PerfilPrestadorDuplicadoException.class)
+    public org.springframework.http.ResponseEntity<java.util.Map<String, String>> handlePerfilPrestadorDuplicado(PerfilPrestadorDuplicadoException ex) {
+        return org.springframework.http.ResponseEntity
+                .status(org.springframework.http.HttpStatus.CONFLICT) // Status 409 Conflict
+                .body(java.util.Map.of("erro", ex.getMessage()));
     }
 
 }
