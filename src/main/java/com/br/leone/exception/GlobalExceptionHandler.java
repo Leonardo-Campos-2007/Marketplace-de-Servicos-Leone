@@ -62,6 +62,20 @@ public class GlobalExceptionHandler {
                 .body(Map.of("erro", ex.getMessage()));
     }
 
+    @ExceptionHandler(ServicoNaoEncontradoException.class)
+    public ResponseEntity<Map<String, String>> handleServicoNaoEncontrado(ServicoNaoEncontradoException ex) {
+        return ResponseEntity
+                .status(HttpStatus.NOT_FOUND)
+                .body(Map.of("erro", ex.getMessage()));
+    }
+
+    @ExceptionHandler(PrestadorSemPermissaoException.class)
+    public ResponseEntity<Map<String, String>> handlePrestadorSemPermissao(PrestadorSemPermissaoException ex) {
+        return ResponseEntity
+                .status(HttpStatus.FORBIDDEN)
+                .body(Map.of("erro", ex.getMessage()));
+    }
+
     @ExceptionHandler(AccessDeniedException.class)
     public ResponseEntity<Map<String, String>> handleAccessDenied(AccessDeniedException ex) {
         return ResponseEntity
