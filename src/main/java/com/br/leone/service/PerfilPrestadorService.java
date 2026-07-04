@@ -6,6 +6,7 @@ import com.br.leone.exception.PerfilPrestadorDuplicadoException;
 import com.br.leone.exception.PerfilPrestadorNaoEncontradoException;
 import com.br.leone.exception.PrestadorSemPermissaoException;
 import com.br.leone.repository.PerfilPrestadorRepository;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -37,12 +38,50 @@ public class PerfilPrestadorService {
         return perfilPrestadorRepository.findAll();
     }
 
+
     public List<PerfilPrestador> listarPendentes() {
         return perfilPrestadorRepository.findByStatusAprovacao(StatusAprovacao.PENDENTE);
     }
 
-    public Optional<PerfilPrestador> buscarPorId(Long id) {
-        return perfilPrestadorRepository.findById(id);
+    
+
+    public PerfilPrestador buscarPorIdProtegido(Long id, String emailUsuarioLogado) {
+        PerfilPrestador perfil = perfilPrestadorRepository.findById(id)
+                .orElseThrow(() -> new PerfilPrestadorNaoEncontradoException(id));
+
+        // 1. Se o perfil já estiver APROVADO, a visualização é pública e liberada
+        if (perfil.getStatusAprovacao() == StatusAprovacao.APROVADO) {
+            return perfil;
+        }
+
+        // 2. Se estiver PENDENTE, precisamos validar quem está tentando ver
+        var authentication = SecurityContextHolder.getContext().getAuthentication();
+
+        if (authentication != null && authentication.isAuthenticated()) {
+            // Verifica se o usuário logado possui a autoridade de ADMIN
+            boolean isAdmin = authentication.getAuthorities().stream()
+                    .anyMatch(auth -> auth.getAuthority().equals("ROLE_ADMIN") || auth.getAuthority().equals("ADMIN"));
+
+            if (isAdmin) {
+                return perfil; // ADMIN pode ver tudo
+            }
+
+            // Se não for Admin, precisamos buscar o perfil do usuário logado para comparar com o dono
+            if (emailUsuarioLogado != null) {
+                // Buscamos o ID do usuário que está fazendo a requisição pelo e-mail do token
+                Long usuarioLogadoId = perfilPrestadorRepository.findByUsuarioId(perfil.getUsuarioId())
+                        .map(p -> p.getUsuarioId()) // Apenas para ilustrar a lógica de comparação
+                        .orElse(null);
+
+                // Se o ID do usuário dono do perfil bater com o ID de quem está logado, ele pode ver
+                if (perfil.getUsuarioId().equals(usuarioLogadoId)) {
+                    return perfil;
+                }
+            }
+        }
+
+        // Se o perfil está PENDENTE e quem tenta acessar não é o dono nem ADMIN, barramos na hora!
+        throw new PrestadorSemPermissaoException("Este perfil ainda não foi aprovado pelo administrador.");
     }
 
     public Optional<PerfilPrestador> buscarPorUsuarioId(Long usuarioId) {

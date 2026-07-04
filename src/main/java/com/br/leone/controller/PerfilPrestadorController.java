@@ -63,10 +63,15 @@ public class PerfilPrestadorController {
 
     // 4. BUSCAR PERFIL POR ID (Público)
     @GetMapping("/{id}")
-    public ResponseEntity<PerfilPrestadorResponseDTO> buscarPorId(@PathVariable Long id) {
-        return perfilService.buscarPorId(id)
-                .map(perfil -> ResponseEntity.ok(new PerfilPrestadorResponseDTO(perfil)))
-                .orElse(ResponseEntity.notFound().build());
+    public ResponseEntity<PerfilPrestadorResponseDTO> buscarPorId(@PathVariable Long id, Authentication authentication) {
+        String emailUsuarioLogado = null;
+
+        if (authentication != null && authentication.getPrincipal() instanceof UserDetails userDetails) {
+            emailUsuarioLogado = userDetails.getUsername();
+        }
+
+        PerfilPrestador perfil = perfilService.buscarPorIdProtegido(id, emailUsuarioLogado);
+        return ResponseEntity.ok(new PerfilPrestadorResponseDTO(perfil));
     }
 
     // 5. ATUALIZAR PERFIL (Apenas o próprio dono)
@@ -89,7 +94,7 @@ public class PerfilPrestadorController {
 
     // 6. LISTAR PERFIS PENDENTES DE APROVAÇÃO
     @GetMapping("/pendentes")
-    @PreAuthorize("hasAnyRole('ADMIN', 'ROLE_ADMIN')")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<List<PerfilPrestadorResponseDTO>> listarPendentes() {
         List<PerfilPrestadorResponseDTO> perfis = perfilService.listarPendentes().stream()
                 .map(PerfilPrestadorResponseDTO::new)
