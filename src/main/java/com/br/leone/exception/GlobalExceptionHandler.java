@@ -98,5 +98,12 @@ public class GlobalExceptionHandler {
                 .body(java.util.Map.of("erro", ex.getMessage()));
     }
 
+    @ExceptionHandler(CredenciaisInvalidasException.class)
+    public ResponseEntity<Map<String, String>> handleCredenciaisInvalidas(CredenciaisInvalidasException ex) {
+        return ResponseEntity
+                .status(HttpStatus.UNAUTHORIZED)
+                .body(Map.of("erro", ex.getMessage()));
+    }
+
 }
 

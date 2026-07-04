@@ -27,9 +27,6 @@ public class AuthController {
 
     @PostMapping("/login")
     public ResponseEntity<LoginResponse> login(@Valid @RequestBody LoginRequest request){
-
-        System.out.println(">>> Entrou no AuthController");
-
         User user = authService.autenticar(request);
 
         String token = jwtService.gerarToken(user);

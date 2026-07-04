@@ -77,6 +77,16 @@ public class ServicoService {
         servicoExistente.setDescricao(dadosNovos.getDescricao());
         servicoExistente.setPrecoBase(dadosNovos.getPrecoBase());
         servicoExistente.setTempoEstimado(dadosNovos.getTempoEstimado());
+        if (servicoExistente.getStatusPublicacao() == StatusPublicacao.SUSPENSO) {
+            throw new PrestadorSemPermissaoException(
+                    "Este serviço está suspenso pela moderação e não pode ser editado ou reativado.");
+        }
+
+        if (dadosNovos.getStatusPublicacao() == StatusPublicacao.SUSPENSO) {
+            throw new PrestadorSemPermissaoException(
+                    "Você não tem permissão para suspender um serviço.");
+        }
+
         servicoExistente.setStatusPublicacao(dadosNovos.getStatusPublicacao());
 
         return servicoRepository.save(servicoExistente);
@@ -87,7 +97,7 @@ public class ServicoService {
                 .orElseThrow(() -> new ServicoNaoEncontradoException(id));
 
         validarDonoDoPerfil(servicoExistente.getPerfilPrestadorId(), usuarioAutenticadoId,
-                "Você não tem permissão para editar este serviço.");
+                "Você não tem permissão para deletar este serviço.");
 
         servicoRepository.deleteById(id);
     }

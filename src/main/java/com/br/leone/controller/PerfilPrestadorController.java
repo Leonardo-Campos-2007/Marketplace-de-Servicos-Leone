@@ -64,13 +64,16 @@ public class PerfilPrestadorController {
     // 4. BUSCAR PERFIL POR ID (Público)
     @GetMapping("/{id}")
     public ResponseEntity<PerfilPrestadorResponseDTO> buscarPorId(@PathVariable Long id, Authentication authentication) {
-        String emailUsuarioLogado = null;
+        Long usuarioLogadoId = null;
+        boolean isAdmin = false;
 
         if (authentication != null && authentication.getPrincipal() instanceof UserDetails userDetails) {
-            emailUsuarioLogado = userDetails.getUsername();
+            isAdmin = userDetails.getAuthorities().stream()
+                    .anyMatch(auth -> auth.getAuthority().equals("ROLE_ADMIN"));
+            usuarioLogadoId = obterUsuarioId(authentication);
         }
 
-        PerfilPrestador perfil = perfilService.buscarPorIdProtegido(id, emailUsuarioLogado);
+        PerfilPrestador perfil = perfilService.buscarPorIdProtegido(id, usuarioLogadoId, isAdmin);
         return ResponseEntity.ok(new PerfilPrestadorResponseDTO(perfil));
     }
 
@@ -104,14 +107,14 @@ public class PerfilPrestadorController {
 
     // 7. APROVAR SOLICITAÇÃO DE PERFIL
     @PatchMapping("/{id}/aprovar")
-    @PreAuthorize("hasAnyRole('ADMIN', 'ROLE_ADMIN')")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<PerfilPrestadorResponseDTO> aprovar(@PathVariable Long id) {
         return ResponseEntity.ok(new PerfilPrestadorResponseDTO(perfilService.aprovarPerfil(id)));
     }
 
     // 8. REJEITAR / EXCLUIR PERFIL
     @DeleteMapping("/{id}/rejeitar")
-    @PreAuthorize("hasAnyRole('ADMIN', 'ROLE_ADMIN')")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Void> rejeitar(@PathVariable Long id) {
         perfilService.rejeitarPerfil(id);
         return ResponseEntity.noContent().build();

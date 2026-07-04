@@ -1,12 +1,13 @@
 package com.br.leone.service;
 
 import com.br.leone.entity.PerfilPrestador;
+import com.br.leone.enums.Role;
 import com.br.leone.enums.StatusAprovacao;
 import com.br.leone.exception.PerfilPrestadorDuplicadoException;
 import com.br.leone.exception.PerfilPrestadorNaoEncontradoException;
 import com.br.leone.exception.PrestadorSemPermissaoException;
 import com.br.leone.repository.PerfilPrestadorRepository;
-import org.springframework.security.core.context.SecurityContextHolder;
+import com.br.leone.repository.UserRepository;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -17,9 +18,11 @@ import java.util.Optional;
 public class PerfilPrestadorService {
 
     private final PerfilPrestadorRepository perfilPrestadorRepository;
+    private final UserRepository userRepository;
 
-    public PerfilPrestadorService(PerfilPrestadorRepository perfilPrestadorRepository) {
+    public PerfilPrestadorService(PerfilPrestadorRepository perfilPrestadorRepository, UserRepository userRepository) {
         this.perfilPrestadorRepository = perfilPrestadorRepository;
+        this.userRepository = userRepository;
     }
 
     // Cria um novo perfil com status PENDENTE
@@ -45,42 +48,22 @@ public class PerfilPrestadorService {
 
     
 
-    public PerfilPrestador buscarPorIdProtegido(Long id, String emailUsuarioLogado) {
+    public PerfilPrestador buscarPorIdProtegido(Long id, Long usuarioLogadoId, boolean isAdmin) {
         PerfilPrestador perfil = perfilPrestadorRepository.findById(id)
                 .orElseThrow(() -> new PerfilPrestadorNaoEncontradoException(id));
 
-        // 1. Se o perfil já estiver APROVADO, a visualização é pública e liberada
         if (perfil.getStatusAprovacao() == StatusAprovacao.APROVADO) {
             return perfil;
         }
 
-        // 2. Se estiver PENDENTE, precisamos validar quem está tentando ver
-        var authentication = SecurityContextHolder.getContext().getAuthentication();
-
-        if (authentication != null && authentication.isAuthenticated()) {
-            // Verifica se o usuário logado possui a autoridade de ADMIN
-            boolean isAdmin = authentication.getAuthorities().stream()
-                    .anyMatch(auth -> auth.getAuthority().equals("ROLE_ADMIN") || auth.getAuthority().equals("ADMIN"));
-
-            if (isAdmin) {
-                return perfil; // ADMIN pode ver tudo
-            }
-
-            // Se não for Admin, precisamos buscar o perfil do usuário logado para comparar com o dono
-            if (emailUsuarioLogado != null) {
-                // Buscamos o ID do usuário que está fazendo a requisição pelo e-mail do token
-                Long usuarioLogadoId = perfilPrestadorRepository.findByUsuarioId(perfil.getUsuarioId())
-                        .map(p -> p.getUsuarioId()) // Apenas para ilustrar a lógica de comparação
-                        .orElse(null);
-
-                // Se o ID do usuário dono do perfil bater com o ID de quem está logado, ele pode ver
-                if (perfil.getUsuarioId().equals(usuarioLogadoId)) {
-                    return perfil;
-                }
-            }
+        if (isAdmin) {
+            return perfil;
         }
 
-        // Se o perfil está PENDENTE e quem tenta acessar não é o dono nem ADMIN, barramos na hora!
+        if (usuarioLogadoId != null && perfil.getUsuarioId().equals(usuarioLogadoId)) {
+            return perfil;
+        }
+
         throw new PrestadorSemPermissaoException("Este perfil ainda não foi aprovado pelo administrador.");
     }
 
@@ -111,7 +94,14 @@ public class PerfilPrestadorService {
 
         perfil.setStatusAprovacao(StatusAprovacao.APROVADO);
         perfil.setDataAprovacao(LocalDateTime.now());
-        return perfilPrestadorRepository.save(perfil);
+        PerfilPrestador perfilSalvo = perfilPrestadorRepository.save(perfil);
+
+        userRepository.findById(perfil.getUsuarioId()).ifPresent(user -> {
+            user.setRole(Role.PRESTADOR);
+            userRepository.save(user);
+        });
+
+        return perfilSalvo;
     }
 
     // Rejeita/Deleta o perfil (Apenas ADMIN)

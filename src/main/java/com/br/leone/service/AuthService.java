@@ -2,6 +2,7 @@ package com.br.leone.service;
 
 import com.br.leone.dto.LoginRequest;
 import com.br.leone.entity.User;
+import com.br.leone.exception.CredenciaisInvalidasException;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -18,10 +19,10 @@ public class AuthService {
 
    public User autenticar(LoginRequest request) {
         User user = userService.buscarPorEmail(request.email())
-                .orElseThrow(() -> new RuntimeException("E-mail ou senha inválidos"));
+                .orElseThrow(() -> new CredenciaisInvalidasException());
 
         if (!passwordEncoder.matches(request.senha(), user.getSenha())) {
-            throw new RuntimeException("E-mail ou senha inválidos");
+            throw new CredenciaisInvalidasException();
         }
         return user;
    }

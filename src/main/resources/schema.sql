@@ -36,3 +36,17 @@ CREATE TABLE IF NOT EXISTS categoria_servico (
     CONSTRAINT fk_categoria_criador FOREIGN KEY (criado_por_usuario_id) REFERENCES users(id),
     CONSTRAINT uq_nome_pai UNIQUE (nome, categoria_pai_id)
     );
+
+CREATE TABLE IF NOT EXISTS servico (
+                                       id                  BIGINT AUTO_INCREMENT PRIMARY KEY,
+                                       perfil_prestador_id BIGINT        NOT NULL,
+                                       categoria_servico_id BIGINT       NOT NULL,
+                                       nome                VARCHAR(150)  NOT NULL,
+    descricao           TEXT          NOT NULL,
+    preco_base          DECIMAL(10,2) NOT NULL,
+    tempo_estimado      INT           NOT NULL,
+    status_publicacao   VARCHAR(20)   NOT NULL DEFAULT 'ATIVO',
+    data_criacao        DATETIME      NOT NULL,
+    CONSTRAINT fk_servico_prestador FOREIGN KEY (perfil_prestador_id) REFERENCES perfil_prestador(id),
+    CONSTRAINT fk_servico_categoria FOREIGN KEY (categoria_servico_id) REFERENCES categoria_servico(id)
+    );
