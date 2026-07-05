@@ -10,9 +10,11 @@ import java.util.List;
 @Repository
 public interface CategoriaServicoRepository extends ListCrudRepository<CategoriaServico, Long> {
 
-    List<CategoriaServico> findByCategoriaPaiId(Long categoriaPaiId);
+    // Traz subcategorias apenas se corresponderem ao status informado (ex: APROVADO)
+    List<CategoriaServico> findByCategoriaPaiIdAndStatusAprovacao(Long categoriaPaiId, StatusAprovacao statusAprovacao);
 
-    List<CategoriaServico> findByCategoriaPaiIdIsNull();
+    // Traz categorias raízes apenas se corresponderem ao status informado
+    List<CategoriaServico> findByCategoriaPaiIdIsNullAndStatusAprovacao(StatusAprovacao statusAprovacao);
 
     boolean existsByNomeAndCategoriaPaiId(String nome, Long categoriaPaiId);
 

@@ -1,14 +1,13 @@
 package com.br.leone.controller;
 
-import com.br.leone.entity.CategoriaServico;
+import com.br.leone.dto.CategoriaRequestDTO;
+import com.br.leone.dto.CategoriaResponseDTO;
 import com.br.leone.service.CategoriaServicoService;
-import com.br.leone.service.UserService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.security.core.Authentication;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
@@ -19,88 +18,81 @@ import java.util.List;
 public class CategoriaServicoController {
 
     private final CategoriaServicoService categoriaServicoService;
-    private final UserService userService;
+    private final com.br.leone.service.UserService userService; // Para buscar o ID do usuário logado
 
-    public CategoriaServicoController(CategoriaServicoService categoriaServicoService, UserService userService) {
+    public CategoriaServicoController(CategoriaServicoService categoriaServicoService, com.br.leone.service.UserService userService) {
         this.categoriaServicoService = categoriaServicoService;
         this.userService = userService;
     }
 
     @PostMapping
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<CategoriaServico> criar(@Valid @RequestBody CategoriaServico categoria) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(categoriaServicoService.criar(categoria));
+    public ResponseEntity<CategoriaResponseDTO> criar(@Valid @RequestBody CategoriaRequestDTO dto) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(categoriaServicoService.criar(dto));
     }
 
     @PostMapping("/sugerir")
-    public ResponseEntity<CategoriaServico> sugerir(@Valid @RequestBody CategoriaServico categoria, Authentication authentication) {
-        Long usuarioId = obterUsuarioId(authentication);
-        return ResponseEntity.status(HttpStatus.CREATED).body(categoriaServicoService.sugerir(categoria, usuarioId));
+    @PreAuthorize("isAuthenticated()") // Garante que qualquer user logado possa sugerir
+    public ResponseEntity<CategoriaResponseDTO> sugerir(@Valid @RequestBody CategoriaRequestDTO dto,
+                                                        @AuthenticationPrincipal UserDetails userDetails) {
+        // Captura o usuário logado de forma limpa usando @AuthenticationPrincipal do Spring Security
+        Long usuarioId = userService.buscarPorEmail(userDetails.getUsername())
+                .orElseThrow(() -> new IllegalStateException("Usuário autenticado não encontrado."))
+                .getId();
+
+        return ResponseEntity.status(HttpStatus.CREATED).body(categoriaServicoService.sugerir(dto, usuarioId));
     }
 
     @PatchMapping("/{id}/aprovar")
-    public ResponseEntity<CategoriaServico> aprovar(@PathVariable Long id, Authentication authentication) {
-        exigirAdmin(authentication);
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<CategoriaResponseDTO> aprovar(@PathVariable Long id) {
         return ResponseEntity.ok(categoriaServicoService.aprovarSugestao(id));
     }
 
     @DeleteMapping("/{id}/rejeitar")
-    public ResponseEntity<Void> rejeitar(@PathVariable Long id, Authentication authentication) {
-        exigirAdmin(authentication);
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Void> rejeitar(@PathVariable Long id) {
         categoriaServicoService.rejeitarSugestao(id);
         return ResponseEntity.noContent().build();
     }
 
     @GetMapping("/pendentes")
-    public ResponseEntity<List<CategoriaServico>> listarPendentes(Authentication authentication) {
-        exigirAdmin(authentication);
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<List<CategoriaResponseDTO>> listarPendentes() {
         return ResponseEntity.ok(categoriaServicoService.listarPendentes());
     }
 
     @GetMapping
-    public ResponseEntity<List<CategoriaServico>> listarTodos() {
+    public ResponseEntity<List<CategoriaResponseDTO>> listarTodos() {
         return ResponseEntity.ok(categoriaServicoService.listarTodos());
     }
 
     @GetMapping("/raizes")
-    public ResponseEntity<List<CategoriaServico>> listarRaizes() {
+    public ResponseEntity<List<CategoriaResponseDTO>> listarRaizes() {
         return ResponseEntity.ok(categoriaServicoService.listarRaizes());
     }
 
     @GetMapping("/{id}/subcategorias")
-    public ResponseEntity<List<CategoriaServico>> listarSubcategorias(@PathVariable Long id) {
+    public ResponseEntity<List<CategoriaResponseDTO>> listarSubcategorias(@PathVariable Long id) {
         return ResponseEntity.ok(categoriaServicoService.listarSubcategorias(id));
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<CategoriaServico> buscarPorId(@PathVariable Long id) {
-        return categoriaServicoService.buscarPorId(id).map(ResponseEntity::ok).orElse(ResponseEntity.notFound().build());
+    public ResponseEntity<CategoriaResponseDTO> buscarPorId(@PathVariable Long id) {
+        return ResponseEntity.ok(categoriaServicoService.buscarPorIdCompleto(id));
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<CategoriaServico> atualizar(@PathVariable Long id, @Valid @RequestBody CategoriaServico categoria, Authentication authentication) {
-        exigirAdmin(authentication);
-        return ResponseEntity.ok(categoriaServicoService.atualizar(id, categoria));
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<CategoriaResponseDTO> atualizar(@PathVariable Long id,
+                                                          @Valid @RequestBody CategoriaRequestDTO dto) {
+        return ResponseEntity.ok(categoriaServicoService.atualizar(id, dto));
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deletar(@PathVariable Long id, Authentication authentication) {
-        exigirAdmin(authentication);
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Void> deletar(@PathVariable Long id) {
         categoriaServicoService.deletar(id);
         return ResponseEntity.noContent().build();
-    }
-
-    private void exigirAdmin(Authentication authentication) {
-        UserDetails userDetails = (UserDetails) authentication.getPrincipal();
-        boolean isAdmin = userDetails.getAuthorities().stream().anyMatch(auth -> auth.getAuthority().equals("ROLE_ADMIN"));
-
-        if (!isAdmin) {
-            throw new AccessDeniedException("Apenas administradores podem acessar este recurso.");
-        }
-    }
-
-    private Long obterUsuarioId(Authentication authentication) {
-        UserDetails userDetails = (UserDetails) authentication.getPrincipal();
-        return userService.buscarPorEmail(userDetails.getUsername()).orElseThrow(() -> new IllegalStateException("Usuário autenticado não encontrado.")).getId();
     }
 }

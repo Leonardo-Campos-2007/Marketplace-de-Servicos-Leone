@@ -105,5 +105,19 @@ public class GlobalExceptionHandler {
                 .body(Map.of("erro", ex.getMessage()));
     }
 
+    @ExceptionHandler(HierarquiaCategoriaInvalidaException.class)
+    public ResponseEntity<Map<String, String>> handleHierarquiaInvalida(HierarquiaCategoriaInvalidaException ex) {
+        return ResponseEntity
+                .status(HttpStatus.BAD_REQUEST)
+                .body(Map.of("erro", ex.getMessage()));
+    }
+
+    @ExceptionHandler(CategoriaPossuiVinculosException.class)
+    public ResponseEntity<Map<String, String>> handleCategoriaPossuiVinculos(CategoriaPossuiVinculosException ex) {
+        return ResponseEntity
+                .status(HttpStatus.BAD_REQUEST)
+                .body(Map.of("erro", ex.getMessage()));
+    }
+
 }
 
