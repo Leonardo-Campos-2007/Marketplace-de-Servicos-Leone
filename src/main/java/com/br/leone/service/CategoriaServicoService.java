@@ -157,14 +157,20 @@ public class CategoriaServicoService {
         }
 
         // 3. Validar duplicidade de nome sob o mesmo nível (ignora a própria categoria se for atualização)
-        boolean jaExiste = categoriaServicoRepository.findByStatusAprovacao(StatusAprovacao.APROVADO)
-                .stream()
-                .anyMatch(c -> c.getNome().equalsIgnoreCase(nome)
-                        && java.util.Objects.equals(c.getCategoriaPaiId(), categoriaPaiId)
-                        && !java.util.Objects.equals(c.getId(), categoriaAtualId));
+        boolean jaExiste = categoriaServicoRepository.existsByNomeAndCategoriaPaiId(nome, categoriaPaiId);
 
-        if (jaExiste) {
+        if (jaExiste && categoriaAtualId == null) {
             throw new CategoriaJaCadastradaException();
+        }
+
+        if (jaExiste && categoriaAtualId != null) {
+            boolean conflitaComOutraCategoria = categoriaServicoRepository.findByCategoriaPaiIdAndStatusAprovacao(categoriaPaiId, StatusAprovacao.APROVADO)
+                    .stream()
+                    .anyMatch(c -> c.getNome().equalsIgnoreCase(nome) && !c.getId().equals(categoriaAtualId));
+
+            if (conflitaComOutraCategoria) {
+                throw new CategoriaJaCadastradaException();
+            }
         }
     }
 

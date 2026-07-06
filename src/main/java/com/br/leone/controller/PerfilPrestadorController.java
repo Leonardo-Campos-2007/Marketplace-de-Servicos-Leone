@@ -9,7 +9,7 @@ import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.security.core.Authentication;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
@@ -30,14 +30,14 @@ public class PerfilPrestadorController {
 
     // 1. SOLICITAR PERFIL (Qualquer usuário autenticado)
     @PostMapping
-    public ResponseEntity<PerfilPrestadorResponseDTO> criar(@Valid @RequestBody PerfilPrestadorRequestDTO dto, Authentication authentication) {
-        Long usuarioAutenticadoId = obterUsuarioId(authentication);
+    public ResponseEntity<PerfilPrestadorResponseDTO> criar(@Valid @RequestBody PerfilPrestadorRequestDTO dto, @AuthenticationPrincipal UserDetails userDetails) {
+        Long usuarioAutenticadoId = obterUsuarioId(userDetails);
 
         PerfilPrestador perfil = new PerfilPrestador();
         perfil.setUsuarioId(usuarioAutenticadoId); // Vincula o perfil automaticamente ao ID de quem está logado
-        perfil.setNomeFantasia(dto.getNomeFantasia());
-        perfil.setDescricao(dto.getDescricao());
-        perfil.setAreaAtuacao(dto.getAreaAtuacao());
+        perfil.setNomeFantasia(dto.nomeFantasia());
+        perfil.setDescricao(dto.descricao());
+        perfil.setAreaAtuacao(dto.areaAtuacao());
 
         PerfilPrestador novoPerfil = perfilService.criar(perfil);
         return ResponseEntity.status(HttpStatus.CREATED).body(new PerfilPrestadorResponseDTO(novoPerfil));
@@ -45,8 +45,8 @@ public class PerfilPrestadorController {
 
     // 2. BUSCAR O PRÓPRIO PERFIL (Baseado no Token)
     @GetMapping("/meu-perfil")
-    public ResponseEntity<PerfilPrestadorResponseDTO> buscarMeuPerfil(Authentication authentication) {
-        Long usuarioAutenticadoId = obterUsuarioId(authentication);
+    public ResponseEntity<PerfilPrestadorResponseDTO> buscarMeuPerfil(@AuthenticationPrincipal UserDetails userDetails) {
+        Long usuarioAutenticadoId = obterUsuarioId(userDetails);
         return perfilService.buscarPorUsuarioId(usuarioAutenticadoId)
                 .map(perfil -> ResponseEntity.ok(new PerfilPrestadorResponseDTO(perfil)))
                 .orElse(ResponseEntity.notFound().build());
@@ -63,14 +63,14 @@ public class PerfilPrestadorController {
 
     // 4. BUSCAR PERFIL POR ID (Público)
     @GetMapping("/{id}")
-    public ResponseEntity<PerfilPrestadorResponseDTO> buscarPorId(@PathVariable Long id, Authentication authentication) {
+    public ResponseEntity<PerfilPrestadorResponseDTO> buscarPorId(@PathVariable Long id, @AuthenticationPrincipal UserDetails userDetails) {
         Long usuarioLogadoId = null;
         boolean isAdmin = false;
 
-        if (authentication != null && authentication.getPrincipal() instanceof UserDetails userDetails) {
+        if (userDetails != null) {
             isAdmin = userDetails.getAuthorities().stream()
                     .anyMatch(auth -> auth.getAuthority().equals("ROLE_ADMIN"));
-            usuarioLogadoId = obterUsuarioId(authentication);
+            usuarioLogadoId = obterUsuarioId(userDetails);
         }
 
         PerfilPrestador perfil = perfilService.buscarPorIdProtegido(id, usuarioLogadoId, isAdmin);
@@ -81,13 +81,13 @@ public class PerfilPrestadorController {
     @PutMapping("/{id}")
     public ResponseEntity<PerfilPrestadorResponseDTO> atualizar(@PathVariable Long id,
                                                                 @Valid @RequestBody PerfilPrestadorRequestDTO dto,
-                                                                Authentication authentication) {
-        Long usuarioAutenticadoId = obterUsuarioId(authentication);
+                                                                @AuthenticationPrincipal UserDetails userDetails) {
+        Long usuarioAutenticadoId = obterUsuarioId(userDetails);
 
         PerfilPrestador dadosNovos = new PerfilPrestador();
-        dadosNovos.setNomeFantasia(dto.getNomeFantasia());
-        dadosNovos.setDescricao(dto.getDescricao());
-        dadosNovos.setAreaAtuacao(dto.getAreaAtuacao());
+        dadosNovos.setNomeFantasia(dto.nomeFantasia());
+        dadosNovos.setDescricao(dto.descricao());
+        dadosNovos.setAreaAtuacao(dto.areaAtuacao());
 
         PerfilPrestador perfilAtualizado = perfilService.atualizar(id, dadosNovos, usuarioAutenticadoId);
         return ResponseEntity.ok(new PerfilPrestadorResponseDTO(perfilAtualizado));
@@ -121,8 +121,7 @@ public class PerfilPrestadorController {
     }
 
     // Método utilitário para extrair ID do usuário logado via Contexto de Segurança
-    private Long obterUsuarioId(Authentication authentication) {
-        UserDetails userDetails = (UserDetails) authentication.getPrincipal();
+    private Long obterUsuarioId(UserDetails userDetails) {
         return userService.buscarPorEmail(userDetails.getUsername())
                 .orElseThrow(() -> new IllegalStateException("Usuário autenticado não encontrado."))
                 .getId();

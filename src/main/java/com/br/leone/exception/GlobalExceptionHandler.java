@@ -85,17 +85,17 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(PerfilPrestadorNaoEncontradoException.class)
-    public org.springframework.http.ResponseEntity<java.util.Map<String, String>> handlePerfilPrestadorNaoEncontrado(PerfilPrestadorNaoEncontradoException ex) {
-        return org.springframework.http.ResponseEntity
-                .status(org.springframework.http.HttpStatus.NOT_FOUND) // Status 404 Not Found
-                .body(java.util.Map.of("erro", ex.getMessage()));
+    public ResponseEntity<Map<String, String>> handlePerfilPrestadorNaoEncontrado(PerfilPrestadorNaoEncontradoException ex) {
+        return ResponseEntity
+                .status(HttpStatus.NOT_FOUND)
+                .body(Map.of("erro", ex.getMessage()));
     }
 
     @ExceptionHandler(PerfilPrestadorDuplicadoException.class)
-    public org.springframework.http.ResponseEntity<java.util.Map<String, String>> handlePerfilPrestadorDuplicado(PerfilPrestadorDuplicadoException ex) {
-        return org.springframework.http.ResponseEntity
-                .status(org.springframework.http.HttpStatus.CONFLICT) // Status 409 Conflict
-                .body(java.util.Map.of("erro", ex.getMessage()));
+    public ResponseEntity<Map<String, String>> handlePerfilPrestadorDuplicado(PerfilPrestadorDuplicadoException ex) {
+        return ResponseEntity
+                .status(HttpStatus.CONFLICT)
+                .body(Map.of("erro", ex.getMessage()));
     }
 
     @ExceptionHandler(CredenciaisInvalidasException.class)

@@ -8,7 +8,7 @@ import com.br.leone.service.UserService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.Authentication;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
@@ -29,17 +29,17 @@ public class ServicoController {
 
     // 1. CREATE
     @PostMapping
-    public ResponseEntity<ServicoResponseDTO> criar(@Valid @RequestBody ServicoRequestDTO dto, Authentication authentication) {
-        Long usuarioAutenticadoId = obterUsuarioId(authentication);
+    public ResponseEntity<ServicoResponseDTO> criar(@Valid @RequestBody ServicoRequestDTO dto, @AuthenticationPrincipal UserDetails userDetails) {
+        Long usuarioAutenticadoId = obterUsuarioId(userDetails);
 
 
         Servico servico = new Servico(
-                dto.getPerfilPrestadorId(),
-                dto.getCategoriaServicoId(),
-                dto.getNome(),
-                dto.getDescricao(),
-                dto.getPrecoBase(),
-                dto.getTempoEstimado(),
+                dto.perfilPrestadorId(),
+                dto.categoriaServicoId(),
+                dto.nome(),
+                dto.descricao(),
+                dto.precoBase(),
+                dto.tempoEstimado(),
                 null
         );
 
@@ -86,17 +86,17 @@ public class ServicoController {
     @PutMapping("/{id}")
     public ResponseEntity<ServicoResponseDTO> atualizar(@PathVariable Long id,
                                                         @Valid @RequestBody ServicoRequestDTO dto,
-                                                        Authentication authentication) {
-        Long usuarioAutenticadoId = obterUsuarioId(authentication);
+                                                        @AuthenticationPrincipal UserDetails userDetails) {
+        Long usuarioAutenticadoId = obterUsuarioId(userDetails);
 
         
         Servico dadosNovos = new Servico(
-                dto.getPerfilPrestadorId(),
-                dto.getCategoriaServicoId(),
-                dto.getNome(),
-                dto.getDescricao(),
-                dto.getPrecoBase(),
-                dto.getTempoEstimado(),
+                dto.perfilPrestadorId(),
+                dto.categoriaServicoId(),
+                dto.nome(),
+                dto.descricao(),
+                dto.precoBase(),
+                dto.tempoEstimado(),
                 null
         );
 
@@ -106,14 +106,13 @@ public class ServicoController {
 
     // 7. DELETE
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deletar(@PathVariable Long id, Authentication authentication) {
-        Long usuarioAutenticadoId = obterUsuarioId(authentication);
+    public ResponseEntity<Void> deletar(@PathVariable Long id, @AuthenticationPrincipal UserDetails userDetails) {
+        Long usuarioAutenticadoId = obterUsuarioId(userDetails);
         servicoService.deletar(id, usuarioAutenticadoId);
         return ResponseEntity.noContent().build();
     }
 
-    private Long obterUsuarioId(Authentication authentication) {
-        UserDetails userDetails = (UserDetails) authentication.getPrincipal();
+    private Long obterUsuarioId(UserDetails userDetails) {
         return userService.buscarPorEmail(userDetails.getUsername())
                 .orElseThrow(() -> new IllegalStateException("Usuário autenticado não encontrado."))
                 .getId();
