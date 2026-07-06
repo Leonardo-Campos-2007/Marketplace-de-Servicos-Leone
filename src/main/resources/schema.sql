@@ -71,3 +71,42 @@ CREATE TABLE IF NOT EXISTS item_carrinho (
     CONSTRAINT fk_item_servico FOREIGN KEY (servico_id) REFERENCES servico(id),
     CONSTRAINT uq_carrinho_servico UNIQUE (carrinho_id, servico_id)
 );
+
+CREATE TABLE IF NOT EXISTS solicitacao_servico (
+    id                      BIGINT AUTO_INCREMENT PRIMARY KEY,
+    comprador_id            BIGINT         NOT NULL,
+    perfil_prestador_id     BIGINT         NOT NULL,
+    status                  VARCHAR(20)    NOT NULL DEFAULT 'PENDENTE',
+    valor_bruto             DECIMAL(10,2)  NOT NULL,
+    comissao_plataforma     DECIMAL(10,2)  NOT NULL,
+    valor_liquido_prestador DECIMAL(10,2)  NOT NULL,
+    data_criacao            DATETIME       NOT NULL,
+    data_atualizacao        DATETIME       NOT NULL,
+    CONSTRAINT fk_solicitacao_comprador FOREIGN KEY (comprador_id) REFERENCES users(id),
+    CONSTRAINT fk_solicitacao_prestador FOREIGN KEY (perfil_prestador_id) REFERENCES perfil_prestador(id)
+);
+
+CREATE TABLE IF NOT EXISTS item_solicitacao (
+    id                      BIGINT AUTO_INCREMENT PRIMARY KEY,
+    solicitacao_id          BIGINT         NOT NULL,
+    servico_id              BIGINT,
+    nome_servico_snapshot   VARCHAR(150)   NOT NULL,
+    descricao_servico_snapshot TEXT           NOT NULL,
+    preco_unitario          DECIMAL(10,2)  NOT NULL,
+    quantidade              INT            NOT NULL DEFAULT 1,
+    tempo_estimado_snapshot INT            NOT NULL,
+    CONSTRAINT fk_item_solicitacao_parent FOREIGN KEY (solicitacao_id) REFERENCES solicitacao_servico(id) ON DELETE CASCADE,
+    CONSTRAINT fk_item_solicitacao_servico FOREIGN KEY (servico_id) REFERENCES servico(id) ON DELETE SET NULL
+);
+
+CREATE TABLE IF NOT EXISTS historico_status_solicitacao (
+    id                     BIGINT AUTO_INCREMENT PRIMARY KEY,
+    solicitacao_id         BIGINT         NOT NULL,
+    status_anterior        VARCHAR(20),
+    status_novo            VARCHAR(20)    NOT NULL,
+    data_alteracao         DATETIME       NOT NULL,
+    observacao             TEXT,
+    usuario_responsavel_id BIGINT         NOT NULL,
+    CONSTRAINT fk_historico_solicitacao FOREIGN KEY (solicitacao_id) REFERENCES solicitacao_servico(id) ON DELETE CASCADE,
+    CONSTRAINT fk_historico_responsavel FOREIGN KEY (usuario_responsavel_id) REFERENCES users(id)
+);
