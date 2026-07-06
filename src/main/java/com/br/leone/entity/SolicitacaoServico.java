@@ -40,21 +40,17 @@ public class SolicitacaoServico {
 
     protected SolicitacaoServico() {}
 
-    public SolicitacaoServico(Long id, Long compradorId,
+    public SolicitacaoServico(Long compradorId, Long perfilPrestadorId,
                               BigDecimal valorBruto, BigDecimal comissaoPlataforma, BigDecimal valorLiquidoPrestador) {
-        this.id = id;
         this.compradorId = compradorId;
         this.perfilPrestadorId = perfilPrestadorId;
-        this.status = status != null ? status : StatusSolicitacao.PENDENTE;
+        this.status = StatusSolicitacao.PENDENTE;
         this.valorBruto = valorBruto;
         this.comissaoPlataforma = comissaoPlataforma;
         this.valorLiquidoPrestador = valorLiquidoPrestador;
-        this.dataCriacao = dataCriacao != null ? dataCriacao : LocalDateTime.now();
-        this.dataAtualizacao = dataAtualizacao != null ? dataAtualizacao : LocalDateTime.now();
+        this.dataCriacao = LocalDateTime.now();
+        this.dataAtualizacao = LocalDateTime.now();
     }
-
-
-
 
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }

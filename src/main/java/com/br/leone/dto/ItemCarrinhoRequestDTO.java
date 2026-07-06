@@ -12,8 +12,7 @@ public record ItemCarrinhoRequestDTO(
         @Max(value = 99, message = "Quantidade máxima é 99")
         Integer quantidade
 ) {
-    @Override
-    public Integer quantidade() {
-        return quantidade != null ? quantidade : 1;
+    public ItemCarrinhoRequestDTO {
+        quantidade = quantidade != null ? quantidade : 1;
     }
 }

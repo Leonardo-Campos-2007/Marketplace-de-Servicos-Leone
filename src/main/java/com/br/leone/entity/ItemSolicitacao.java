@@ -35,10 +35,9 @@ public class ItemSolicitacao {
 
     protected ItemSolicitacao() {}
 
-    public ItemSolicitacao(Long id, Long solicitacaoId, String nomeServicoSnapshot,
+    public ItemSolicitacao(Long solicitacaoId, Long servicoId, String nomeServicoSnapshot,
                            String descricaoServicoSnapshot, BigDecimal precoUnitario, Integer quantidade,
                            Integer tempoEstimadoSnapshot) {
-        this.id = id;
         this.solicitacaoId = solicitacaoId;
         this.servicoId = servicoId;
         this.nomeServicoSnapshot = nomeServicoSnapshot;
@@ -47,8 +46,6 @@ public class ItemSolicitacao {
         this.quantidade = quantidade != null ? quantidade : 1;
         this.tempoEstimadoSnapshot = tempoEstimadoSnapshot;
     }
-
-
 
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }

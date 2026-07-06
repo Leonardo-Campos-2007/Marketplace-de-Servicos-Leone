@@ -6,41 +6,26 @@ import com.br.leone.entity.Servico;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
-public class ItemCarrinhoResponseDTO {
-
-    private Long id;
-    private Long servicoId;
-    private String nomeServico;
-    private BigDecimal precoBaseServicoAtual;
-    private BigDecimal precoUnitarioNoCarrinho;
-    private Integer quantidade;
-    private LocalDateTime dataAdicionado;
-    private boolean precoAlterado;
-
+public record ItemCarrinhoResponseDTO(
+        Long id,
+        Long servicoId,
+        String nomeServico,
+        BigDecimal precoBaseServicoAtual,
+        BigDecimal precoUnitarioNoCarrinho,
+        Integer quantidade,
+        LocalDateTime dataAdicionado,
+        boolean precoAlterado
+) {
     public ItemCarrinhoResponseDTO(ItemCarrinho item, Servico servico) {
-        this.id = item.getId();
-        this.servicoId = item.getServicoId();
-        this.quantidade = item.getQuantidade();
-        this.precoUnitarioNoCarrinho = item.getPrecoUnitario();
-        this.dataAdicionado = item.getDataAdicionado();
-
-        if (servico != null) {
-            this.nomeServico = servico.getNome();
-            this.precoBaseServicoAtual = servico.getPrecoBase();
-            this.precoAlterado = item.getPrecoUnitario().compareTo(servico.getPrecoBase()) != 0;
-        } else {
-            this.nomeServico = "Serviço Inexistente";
-            this.precoBaseServicoAtual = BigDecimal.ZERO;
-            this.precoAlterado = false;
-        }
+        this(
+                item.getId(),
+                item.getServicoId(),
+                servico != null ? servico.getNome() : "Serviço Inexistente",
+                servico != null ? servico.getPrecoBase() : BigDecimal.ZERO,
+                item.getPrecoUnitario(),
+                item.getQuantidade(),
+                item.getDataAdicionado(),
+                servico != null && item.getPrecoUnitario().compareTo(servico.getPrecoBase()) != 0
+        );
     }
-
-    public Long getId() { return id; }
-    public Long getServicoId() { return servicoId; }
-    public String getNomeServico() { return nomeServico; }
-    public BigDecimal getPrecoBaseServicoAtual() { return precoBaseServicoAtual; }
-    public BigDecimal getPrecoUnitarioNoCarrinho() { return precoUnitarioNoCarrinho; }
-    public Integer getQuantidade() { return quantidade; }
-    public LocalDateTime getDataAdicionado() { return dataAdicionado; }
-    public boolean isPrecoAlterado() { return precoAlterado; }
 }

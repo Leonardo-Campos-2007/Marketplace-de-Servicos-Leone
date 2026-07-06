@@ -126,8 +126,6 @@ public class SolicitacaoServicoService {
         // Permissão: comprador, prestador do perfil, ou admin
         if (isAdmin) return s;
         if (Objects.equals(s.getCompradorId(), usuarioLogadoId)) return s;
-        if (Objects.equals(s.getPerfilPrestadorId(), usuarioLogadoId)) return s; // note:perfilPrestadorId is profile id; but requirement was prestador user id - map needed
-
         // To be conservative, also allow if usuarioLogadoId equals owner user id of perfilPrestador
         var perfilOpt = perfilPrestadorRepository.findById(s.getPerfilPrestadorId());
         if (perfilOpt.isPresent() && Objects.equals(perfilOpt.get().getUsuarioId(), usuarioLogadoId)) return s;
