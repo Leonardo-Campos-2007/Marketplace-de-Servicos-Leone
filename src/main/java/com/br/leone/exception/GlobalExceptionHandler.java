@@ -119,5 +119,33 @@ public class GlobalExceptionHandler {
                 .body(Map.of("erro", ex.getMessage()));
     }
 
+    @ExceptionHandler(CompraProprioServicoException.class)
+    public ResponseEntity<Map<String, String>> handleCompraProprioServico(CompraProprioServicoException ex) {
+        return ResponseEntity
+                .status(HttpStatus.BAD_REQUEST)
+                .body(Map.of("erro", ex.getMessage()));
+    }
+
+    @ExceptionHandler(ServicoInativoException.class)
+    public ResponseEntity<Map<String, String>> handleServicoInativo(ServicoInativoException ex) {
+        return ResponseEntity
+                .status(HttpStatus.BAD_REQUEST)
+                .body(Map.of("erro", ex.getMessage()));
+    }
+
+    @ExceptionHandler(PerfilPrestadorNaoAprovadoException.class)
+    public ResponseEntity<Map<String, String>> handlePerfilPrestadorNaoAprovado(PerfilPrestadorNaoAprovadoException ex) {
+        return ResponseEntity
+                .status(HttpStatus.BAD_REQUEST)
+                .body(Map.of("erro", ex.getMessage()));
+    }
+
+    @ExceptionHandler(ItemCarrinhoNaoEncontradoException.class)
+    public ResponseEntity<Map<String, String>> handleItemCarrinhoNaoEncontrado(ItemCarrinhoNaoEncontradoException ex) {
+        return ResponseEntity
+                .status(HttpStatus.NOT_FOUND)
+                .body(Map.of("erro", ex.getMessage()));
+    }
+
 }
 

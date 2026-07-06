@@ -50,3 +50,24 @@ CREATE TABLE IF NOT EXISTS servico (
     CONSTRAINT fk_servico_prestador FOREIGN KEY (perfil_prestador_id) REFERENCES perfil_prestador(id),
     CONSTRAINT fk_servico_categoria FOREIGN KEY (categoria_servico_id) REFERENCES categoria_servico(id)
     );
+
+CREATE TABLE IF NOT EXISTS carrinho (
+    id               BIGINT AUTO_INCREMENT PRIMARY KEY,
+    usuario_id       BIGINT        NOT NULL,
+    status           VARCHAR(20)   NOT NULL DEFAULT 'ATIVO',
+    data_criacao     DATETIME      NOT NULL,
+    data_atualizacao DATETIME      NOT NULL,
+    CONSTRAINT fk_carrinho_usuario FOREIGN KEY (usuario_id) REFERENCES users(id)
+);
+
+CREATE TABLE IF NOT EXISTS item_carrinho (
+    id              BIGINT AUTO_INCREMENT PRIMARY KEY,
+    carrinho_id     BIGINT        NOT NULL,
+    servico_id      BIGINT        NOT NULL,
+    quantidade      INT           NOT NULL DEFAULT 1,
+    preco_unitario  DECIMAL(10,2) NOT NULL,
+    data_adicionado DATETIME      NOT NULL,
+    CONSTRAINT fk_item_carrinho_parent FOREIGN KEY (carrinho_id) REFERENCES carrinho(id) ON DELETE CASCADE,
+    CONSTRAINT fk_item_servico FOREIGN KEY (servico_id) REFERENCES servico(id),
+    CONSTRAINT uq_carrinho_servico UNIQUE (carrinho_id, servico_id)
+);
