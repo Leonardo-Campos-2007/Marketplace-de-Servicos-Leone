@@ -14,7 +14,7 @@ public class HistoricoStatusSolicitacao {
     private Long id;
 
     @Column("solicitacao_id")
-    private Long solicitacaoId;
+    private StatusSolicitacao solicitacaoId;
 
     @Column("status_anterior")
     private StatusSolicitacao statusAnterior;
@@ -33,8 +33,8 @@ public class HistoricoStatusSolicitacao {
 
     protected HistoricoStatusSolicitacao() {}
 
-    public HistoricoStatusSolicitacao(Long id, Long solicitacaoId, StatusSolicitacao statusAnterior,
-                                      StatusSolicitacao statusNovo, LocalDateTime dataAlteracao,
+    public HistoricoStatusSolicitacao(Long id, StatusSolicitacao solicitacaoId, StatusSolicitacao statusAnterior,
+                                      LocalDateTime dataAlteracao,
                                       String observacao, Long usuarioResponsavelId) {
         this.id = id;
         this.solicitacaoId = solicitacaoId;
@@ -50,8 +50,8 @@ public class HistoricoStatusSolicitacao {
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
 
-    public Long getSolicitacaoId() { return solicitacaoId; }
-    public void setSolicitacaoId(Long solicitacaoId) { this.solicitacaoId = solicitacaoId; }
+    public StatusSolicitacao getSolicitacaoId() { return solicitacaoId; }
+    public void setSolicitacaoId(StatusSolicitacao solicitacaoId) { this.solicitacaoId = solicitacaoId; }
 
     public StatusSolicitacao getStatusAnterior() { return statusAnterior; }
     public void setStatusAnterior(StatusSolicitacao statusAnterior) { this.statusAnterior = statusAnterior; }

@@ -35,7 +35,7 @@ public class ItemSolicitacao {
 
     protected ItemSolicitacao() {}
 
-    public ItemSolicitacao(Long id, Long solicitacaoId, Long servicoId, String nomeServicoSnapshot,
+    public ItemSolicitacao(Long id, Long solicitacaoId, String nomeServicoSnapshot,
                            String descricaoServicoSnapshot, BigDecimal precoUnitario, Integer quantidade,
                            Integer tempoEstimadoSnapshot) {
         this.id = id;
