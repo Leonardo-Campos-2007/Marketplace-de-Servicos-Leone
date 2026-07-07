@@ -110,3 +110,22 @@ CREATE TABLE IF NOT EXISTS historico_status_solicitacao (
     CONSTRAINT fk_historico_solicitacao FOREIGN KEY (solicitacao_id) REFERENCES solicitacao_servico(id) ON DELETE CASCADE,
     CONSTRAINT fk_historico_responsavel FOREIGN KEY (usuario_responsavel_id) REFERENCES users(id)
 );
+
+CREATE TABLE IF NOT EXISTS chat (
+                                    id             BIGINT AUTO_INCREMENT PRIMARY KEY,
+                                    solicitacao_id BIGINT    NOT NULL UNIQUE,
+                                    ativo          BOOLEAN   NOT NULL DEFAULT TRUE,
+                                    data_criacao   DATETIME  NOT NULL,
+                                    CONSTRAINT fk_chat_solicitacao FOREIGN KEY (solicitacao_id) REFERENCES solicitacao_servico(id)
+    );
+
+CREATE TABLE IF NOT EXISTS mensagem (
+                                        id           BIGINT AUTO_INCREMENT PRIMARY KEY,
+                                        chat_id      BIGINT       NOT NULL,
+                                        remetente_id BIGINT       NOT NULL,
+                                        conteudo     TEXT         NOT NULL,
+                                        data_envio   DATETIME     NOT NULL,
+                                        lida         BOOLEAN      NOT NULL DEFAULT FALSE,
+                                        CONSTRAINT fk_mensagem_chat FOREIGN KEY (chat_id) REFERENCES chat(id) ON DELETE CASCADE,
+    CONSTRAINT fk_mensagem_remetente FOREIGN KEY (remetente_id) REFERENCES users(id)
+    );

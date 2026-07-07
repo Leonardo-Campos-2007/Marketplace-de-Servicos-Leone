@@ -147,5 +147,26 @@ public class GlobalExceptionHandler {
                 .body(Map.of("erro", ex.getMessage()));
     }
 
+    @ExceptionHandler(ChatNaoEncontradoException.class)
+    public ResponseEntity<Map<String, String>> handleChatNaoEncontrado(ChatNaoEncontradoException ex) {
+        return ResponseEntity
+                .status(HttpStatus.NOT_FOUND)
+                .body(Map.of("erro", ex.getMessage()));
+    }
+
+    @ExceptionHandler(ChatEncerradoException.class)
+    public ResponseEntity<Map<String, String>> handleChatEncerrado(ChatEncerradoException ex) {
+        return ResponseEntity
+                .status(HttpStatus.BAD_REQUEST)
+                .body(Map.of("erro", ex.getMessage()));
+    }
+
+    @ExceptionHandler(AcessoChatNegadoException.class)
+    public ResponseEntity<Map<String, String>> handleAcessoChatNegado(AcessoChatNegadoException ex) {
+        return ResponseEntity
+                .status(HttpStatus.FORBIDDEN)
+                .body(Map.of("erro", ex.getMessage()));
+    }
+
 }
 

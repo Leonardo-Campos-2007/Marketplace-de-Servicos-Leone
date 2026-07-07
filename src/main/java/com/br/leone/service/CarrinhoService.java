@@ -53,7 +53,7 @@ public class CarrinhoService {
                 });
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public CarrinhoResponseDTO obterCarrinhoResponse(Long usuarioId) {
         Carrinho carrinho = obterOuCriarCarrinhoAtivo(usuarioId);
         return converterParaDTO(carrinho);

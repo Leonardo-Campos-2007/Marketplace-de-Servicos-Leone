@@ -25,6 +25,7 @@ public class SolicitacaoServicoService {
     private final SolicitacaoServicoRepository solicitacaoServicoRepository;
     private final ItemSolicitacaoRepository itemSolicitacaoRepository;
     private final HistoricoStatusSolicitacaoRepository historicoRepository;
+    private final ChatService chatService;
 
     public SolicitacaoServicoService(CarrinhoRepository carrinhoRepository,
                                      ItemCarrinhoRepository itemCarrinhoRepository,
@@ -32,7 +33,7 @@ public class SolicitacaoServicoService {
                                      PerfilPrestadorRepository perfilPrestadorRepository,
                                      SolicitacaoServicoRepository solicitacaoServicoRepository,
                                      ItemSolicitacaoRepository itemSolicitacaoRepository,
-                                     HistoricoStatusSolicitacaoRepository historicoRepository) {
+                                     HistoricoStatusSolicitacaoRepository historicoRepository, ChatService chatService) {
         this.carrinhoRepository = carrinhoRepository;
         this.itemCarrinhoRepository = itemCarrinhoRepository;
         this.servicoRepository = servicoRepository;
@@ -40,6 +41,7 @@ public class SolicitacaoServicoService {
         this.solicitacaoServicoRepository = solicitacaoServicoRepository;
         this.itemSolicitacaoRepository = itemSolicitacaoRepository;
         this.historicoRepository = historicoRepository;
+        this.chatService = chatService;
     }
 
     @Transactional
@@ -81,6 +83,7 @@ public class SolicitacaoServicoService {
 
             SolicitacaoServico s = new SolicitacaoServico(compradorId, perfilPrestadorId, valorBruto.setScale(2, RoundingMode.HALF_UP), comissao, valorLiquido);
             SolicitacaoServico salvo = solicitacaoServicoRepository.save(s);
+            chatService.criarChatParaSolicitacao(salvo.getId());
 
             // Criar itens da solicitacao com snapshot
             for (com.br.leone.entity.ItemCarrinho ic : itensDoPrestador) {
@@ -140,49 +143,56 @@ public class SolicitacaoServicoService {
         SolicitacaoServico s = opt.get();
         StatusSolicitacao anterior = s.getStatus();
 
-        // Regras de transição e permissões
-        // Quem pode aceitar/rejeitar: apenas o prestador dono do perfil associado
-        // Quem pode iniciar: apenas o prestador (ACEITA -> EM_ANDAMENTO)
-        // Quem pode concluir: apenas o comprador ou ADMIN
-        // Quem pode cancelar: comprador (se PENDENTE), prestador (PENDENTE, ACEITA, EM_ANDAMENTO), ADMIN sempre
-
-        // obter id do usuario dono do perfil prestador
         Long prestadorUsuarioId = perfilPrestadorRepository.findById(s.getPerfilPrestadorId()).map(p -> p.getUsuarioId()).orElse(null);
-
         boolean isPrestador = Objects.equals(prestadorUsuarioId, usuarioResponsavelId);
         boolean isComprador = Objects.equals(s.getCompradorId(), usuarioResponsavelId);
 
-        // verify transition validity
-        if (anterior == StatusSolicitacao.PENDENTE && novoStatus == StatusSolicitacao.ACEITA) {
-            if (!isPrestador && !isAdmin) throw new StatusTransicaoInvalidaException("Apenas o prestador pode aceitar a solicitação.");
-        } else if (anterior == StatusSolicitacao.PENDENTE && novoStatus == StatusSolicitacao.CANCELADA) {
-            if (!(isComprador || isPrestador || isAdmin)) throw new StatusTransicaoInvalidaException("Sem permissão para cancelar a solicitação pendente.");
-        } else if (anterior == StatusSolicitacao.ACEITA && novoStatus == StatusSolicitacao.EM_ANDAMENTO) {
-            if (!isPrestador && !isAdmin) throw new StatusTransicaoInvalidaException("Apenas o prestador pode iniciar a execução.");
-        } else if (novoStatus == StatusSolicitacao.CONCLUIDA) {
-            if (!(isComprador || isAdmin)) throw new StatusTransicaoInvalidaException("Apenas o comprador ou um ADMIN podem concluir a solicitação.");
-        } else if (novoStatus == StatusSolicitacao.CANCELADA) {
-            // prestador pode cancelar em PENDENTE, ACEITA, EM_ANDAMENTO
-            if (isPrestador) {
-                if (!(anterior == StatusSolicitacao.PENDENTE || anterior == StatusSolicitacao.ACEITA || anterior == StatusSolicitacao.EM_ANDAMENTO)) {
-                    throw new StatusTransicaoInvalidaException("Prestador não pode cancelar neste estado.");
-                }
-            } else if (isComprador) {
-                if (anterior != StatusSolicitacao.PENDENTE) throw new StatusTransicaoInvalidaException("Comprador só pode cancelar quando a solicitação estiver pendente.");
-            } else if (!isAdmin) {
-                throw new StatusTransicaoInvalidaException("Sem permissão para cancelar a solicitação.");
+        if (!isAdmin && !isPrestador && !isComprador) {
+            throw new StatusTransicaoInvalidaException("Você não tem permissão sobre esta solicitação.");
+        }
+
+        boolean transicaoValida = switch (anterior) {
+            case PENDENTE -> novoStatus == StatusSolicitacao.ACEITA || novoStatus == StatusSolicitacao.CANCELADA;
+            case ACEITA -> novoStatus == StatusSolicitacao.EM_ANDAMENTO || novoStatus == StatusSolicitacao.CANCELADA;
+            case EM_ANDAMENTO -> novoStatus == StatusSolicitacao.CONCLUIDA || novoStatus == StatusSolicitacao.CANCELADA;
+            case CONCLUIDA, CANCELADA -> false;
+        };
+
+        if (!transicaoValida) {
+            throw new StatusTransicaoInvalidaException(
+                    "Transição de " + anterior + " para " + novoStatus + " não é permitida.");
+        }
+
+        if (novoStatus == StatusSolicitacao.ACEITA && !isPrestador && !isAdmin) {
+            throw new StatusTransicaoInvalidaException("Apenas o prestador pode aceitar a solicitação.");
+        }
+
+        if (novoStatus == StatusSolicitacao.EM_ANDAMENTO && !isPrestador && !isAdmin) {
+            throw new StatusTransicaoInvalidaException("Apenas o prestador pode iniciar a execução.");
+        }
+
+        if (novoStatus == StatusSolicitacao.CONCLUIDA && !isComprador && !isAdmin) {
+            throw new StatusTransicaoInvalidaException("Apenas o comprador ou um ADMIN podem concluir a solicitação.");
+        }
+
+        if (novoStatus == StatusSolicitacao.CANCELADA) {
+            if (isPrestador && !(anterior == StatusSolicitacao.PENDENTE || anterior == StatusSolicitacao.ACEITA || anterior == StatusSolicitacao.EM_ANDAMENTO)) {
+                throw new StatusTransicaoInvalidaException("Prestador não pode cancelar neste estado.");
             }
-        } else {
-            // permitir transições naturals: PENDENTE->ACEITA, ACEITA->EM_ANDAMENTO, EM_ANDAMENTO->CONCLUIDA, etc.
-            // impeditivas gerais: não permitir voltar de CONCLUIDA ou CANCELADA
-            if (anterior == StatusSolicitacao.CONCLUIDA || anterior == StatusSolicitacao.CANCELADA) {
-                throw new StatusTransicaoInvalidaException("Não é possível alterar o status de uma solicitação finalizada.");
+            if (isComprador && anterior != StatusSolicitacao.PENDENTE) {
+                throw new StatusTransicaoInvalidaException("Comprador só pode cancelar quando a solicitação estiver pendente.");
+            }
+            if (!isPrestador && !isComprador && !isAdmin) {
+                throw new StatusTransicaoInvalidaException("Sem permissão para cancelar a solicitação.");
             }
         }
 
         s.setStatus(novoStatus);
         s.setDataAtualizacao(LocalDateTime.now());
         solicitacaoServicoRepository.save(s);
+        if (novoStatus == StatusSolicitacao.CONCLUIDA || novoStatus == StatusSolicitacao.CANCELADA) {
+            chatService.encerrarChat(s.getId());
+        }
 
         HistoricoStatusSolicitacao hist = new HistoricoStatusSolicitacao(s.getId(), anterior, novoStatus, LocalDateTime.now(), observacao, usuarioResponsavelId);
         historicoRepository.save(hist);
