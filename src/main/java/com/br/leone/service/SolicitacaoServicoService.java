@@ -3,6 +3,7 @@ package com.br.leone.service;
 import com.br.leone.entity.*;
 import com.br.leone.enums.StatusCarrinho;
 import com.br.leone.enums.StatusSolicitacao;
+import com.br.leone.enums.TipoNotificacao;
 import com.br.leone.exception.SolicitacaoNaoEncontradaException;
 import com.br.leone.exception.StatusTransicaoInvalidaException;
 import com.br.leone.repository.*;
@@ -26,6 +27,7 @@ public class SolicitacaoServicoService {
     private final ItemSolicitacaoRepository itemSolicitacaoRepository;
     private final HistoricoStatusSolicitacaoRepository historicoRepository;
     private final ChatService chatService;
+    private final NotificacaoService notificacaoService;
 
     public SolicitacaoServicoService(CarrinhoRepository carrinhoRepository,
                                      ItemCarrinhoRepository itemCarrinhoRepository,
@@ -33,7 +35,9 @@ public class SolicitacaoServicoService {
                                      PerfilPrestadorRepository perfilPrestadorRepository,
                                      SolicitacaoServicoRepository solicitacaoServicoRepository,
                                      ItemSolicitacaoRepository itemSolicitacaoRepository,
-                                     HistoricoStatusSolicitacaoRepository historicoRepository, ChatService chatService) {
+                                     HistoricoStatusSolicitacaoRepository historicoRepository,
+                                     ChatService chatService,
+                                     NotificacaoService notificacaoService) {
         this.carrinhoRepository = carrinhoRepository;
         this.itemCarrinhoRepository = itemCarrinhoRepository;
         this.servicoRepository = servicoRepository;
@@ -42,6 +46,7 @@ public class SolicitacaoServicoService {
         this.itemSolicitacaoRepository = itemSolicitacaoRepository;
         this.historicoRepository = historicoRepository;
         this.chatService = chatService;
+        this.notificacaoService = notificacaoService;
     }
 
     @Transactional
@@ -52,17 +57,16 @@ public class SolicitacaoServicoService {
         }
 
         var carrinho = carrinhoOpt.get();
-        List<com.br.leone.entity.ItemCarrinho> itensCarrinho = itemCarrinhoRepository.findByCarrinhoId(carrinho.getId());
+        List<ItemCarrinho> itensCarrinho = itemCarrinhoRepository.findByCarrinhoId(carrinho.getId());
         if (itensCarrinho.isEmpty()) {
             throw new IllegalArgumentException("Carrinho está vazio.");
         }
 
-        List<Long> servicoIds = itensCarrinho.stream().map(com.br.leone.entity.ItemCarrinho::getServicoId).toList();
-        List<com.br.leone.entity.Servico> servicos = servicoRepository.findAllById(servicoIds);
-        Map<Long, com.br.leone.entity.Servico> servicoMap = servicos.stream().collect(Collectors.toMap(com.br.leone.entity.Servico::getId, s -> s));
+        List<Long> servicoIds = itensCarrinho.stream().map(ItemCarrinho::getServicoId).toList();
+        List<Servico> servicos = servicoRepository.findAllById(servicoIds);
+        Map<Long, Servico> servicoMap = servicos.stream().collect(Collectors.toMap(Servico::getId, s -> s));
 
-        // Agrupar itens por prestador
-        Map<Long, List<com.br.leone.entity.ItemCarrinho>> itensPorPrestador = itensCarrinho.stream()
+        Map<Long, List<ItemCarrinho>> itensPorPrestador = itensCarrinho.stream()
                 .collect(Collectors.groupingBy(item -> {
                     var s = servicoMap.get(item.getServicoId());
                     return s.getPerfilPrestadorId();
@@ -70,9 +74,9 @@ public class SolicitacaoServicoService {
 
         List<SolicitacaoServico> criadas = new ArrayList<>();
 
-        for (Map.Entry<Long, List<com.br.leone.entity.ItemCarrinho>> entry : itensPorPrestador.entrySet()) {
+        for (Map.Entry<Long, List<ItemCarrinho>> entry : itensPorPrestador.entrySet()) {
             Long perfilPrestadorId = entry.getKey();
-            List<com.br.leone.entity.ItemCarrinho> itensDoPrestador = entry.getValue();
+            List<ItemCarrinho> itensDoPrestador = entry.getValue();
 
             BigDecimal valorBruto = itensDoPrestador.stream()
                     .map(i -> i.getPrecoUnitario().multiply(BigDecimal.valueOf(i.getQuantidade())))
@@ -85,21 +89,18 @@ public class SolicitacaoServicoService {
             SolicitacaoServico salvo = solicitacaoServicoRepository.save(s);
             chatService.criarChatParaSolicitacao(salvo.getId());
 
-            // Criar itens da solicitacao com snapshot
-            for (com.br.leone.entity.ItemCarrinho ic : itensDoPrestador) {
-                com.br.leone.entity.Servico serv = servicoMap.get(ic.getServicoId());
+            for (ItemCarrinho ic : itensDoPrestador) {
+                Servico serv = servicoMap.get(ic.getServicoId());
                 ItemSolicitacao item = new ItemSolicitacao(salvo.getId(), serv.getId(), serv.getNome(), serv.getDescricao(), ic.getPrecoUnitario(), ic.getQuantidade(), serv.getTempoEstimado());
                 itemSolicitacaoRepository.save(item);
             }
 
-            // Criar histórico inicial
             HistoricoStatusSolicitacao hist = new HistoricoStatusSolicitacao(salvo.getId(), null, StatusSolicitacao.PENDENTE, LocalDateTime.now(), "Criação via checkout", compradorId);
             historicoRepository.save(hist);
 
             criadas.add(salvo);
         }
 
-        // Marcar carrinho como convertido e limpar itens
         carrinho.setStatus(StatusCarrinho.CONVERTIDO);
         carrinho.setDataAtualizacao(LocalDateTime.now());
         carrinhoRepository.save(carrinho);
@@ -126,10 +127,8 @@ public class SolicitacaoServicoService {
         if (opt.isEmpty()) throw new SolicitacaoNaoEncontradaException(id);
         SolicitacaoServico s = opt.get();
 
-        // Permissão: comprador, prestador do perfil, ou admin
         if (isAdmin) return s;
         if (Objects.equals(s.getCompradorId(), usuarioLogadoId)) return s;
-        // To be conservative, also allow if usuarioLogadoId equals owner user id of perfilPrestador
         var perfilOpt = perfilPrestadorRepository.findById(s.getPerfilPrestadorId());
         if (perfilOpt.isPresent() && Objects.equals(perfilOpt.get().getUsuarioId(), usuarioLogadoId)) return s;
 
@@ -190,13 +189,42 @@ public class SolicitacaoServicoService {
         s.setStatus(novoStatus);
         s.setDataAtualizacao(LocalDateTime.now());
         solicitacaoServicoRepository.save(s);
+
         if (novoStatus == StatusSolicitacao.CONCLUIDA || novoStatus == StatusSolicitacao.CANCELADA) {
             chatService.encerrarChat(s.getId());
+        }
+
+        List<Long> destinatarios = determinarDestinatariosNotificacao(s, usuarioResponsavelId, prestadorUsuarioId, isAdmin);
+        TipoNotificacao tipoNotificacao = mapearTipoNotificacao(novoStatus);
+        if (tipoNotificacao != null) {
+            for (Long destinatarioId : destinatarios) {
+                notificacaoService.notificar(destinatarioId, tipoNotificacao, s.getId());
+            }
         }
 
         HistoricoStatusSolicitacao hist = new HistoricoStatusSolicitacao(s.getId(), anterior, novoStatus, LocalDateTime.now(), observacao, usuarioResponsavelId);
         historicoRepository.save(hist);
 
         return s;
+    }
+
+    private List<Long> determinarDestinatariosNotificacao(SolicitacaoServico s, Long usuarioResponsavelId,
+                                                          Long prestadorUsuarioId, boolean isAdmin) {
+        if (isAdmin) {
+            return List.of(s.getCompradorId(), prestadorUsuarioId);
+        }
+        boolean quemAgiuFoiComprador = Objects.equals(s.getCompradorId(), usuarioResponsavelId);
+        Long destinatario = quemAgiuFoiComprador ? prestadorUsuarioId : s.getCompradorId();
+        return destinatario != null ? List.of(destinatario) : List.of();
+    }
+
+    private TipoNotificacao mapearTipoNotificacao(StatusSolicitacao novoStatus) {
+        return switch (novoStatus) {
+            case ACEITA -> TipoNotificacao.SOLICITACAO_ACEITA;
+            case EM_ANDAMENTO -> TipoNotificacao.SOLICITACAO_INICIADA;
+            case CONCLUIDA -> TipoNotificacao.SOLICITACAO_CONCLUIDA;
+            case CANCELADA -> TipoNotificacao.SOLICITACAO_CANCELADA;
+            default -> null;
+        };
     }
 }

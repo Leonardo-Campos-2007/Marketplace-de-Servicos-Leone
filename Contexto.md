@@ -145,7 +145,15 @@ com.br.leone
 
 **Fase 3 — concluída e testada:** `Chat`, `Mensagem`, vinculados a `SolicitacaoServico`, peer-to-peer entre comprador e prestador. Encerramento automático do chat quando a solicitação atinge estado final; histórico permanece legível mesmo encerrado. Admin lê para moderação, mas não envia mensagem.
 
-**Fase 4 — em andamento:** `Notificacao` (campo de tipo/enum, não texto livre) e `Anexo` **vinculados apenas a `Mensagem`** (decisão de escopo — ver nota abaixo), mais WebSocket para chat/notificação em tempo real.
+**Fase 4 — em andamento:** `Notificacao` **concluída e testada** (campo de tipo/enum, não texto livre). `Anexo` (vinculado apenas a `Mensagem` — ver nota de escopo abaixo) e WebSocket ainda pendentes.
+
+**`Notificacao`** — implementada.
+- Nunca criada por endpoint direto; sempre disparada internamente por `SolicitacaoServicoService.alterarStatus` (nas transições `ACEITA`, `EM_ANDAMENTO`, `CONCLUIDA`, `CANCELADA`) e por `ChatService.enviarMensagem` (toda mensagem nova).
+- **Best-effort by design:** `NotificacaoService.notificar(...)` captura qualquer exceção internamente e só loga o erro, nunca deixa a falha de notificação reverter a transação da operação principal (enviar mensagem, mudar status). Isso é proposital — perder uma notificação é aceitável, perder a operação de negócio que a originou não é.
+- **Destinatário nunca é quem executou a ação.** Quando comprador ou prestador agem, notifica só a outra parte. Quando **admin** age (ele pode fazer qualquer transição na máquina de estados), notifica **ambas** as partes — esse caso foi um bug real encontrado e corrigido durante a implementação: a lógica ingênua de "quem não é o autor" atribuía a notificação à parte errada quando o autor era admin, porque nem comprador nem prestador tinham agido de fato.
+- **`referenciaId` sempre aponta para a entidade navegável pelo frontend**, não necessariamente para a entidade que gerou o evento. Ex.: notificação de `MENSAGEM_NOVA` referencia o `solicitacaoId`, não o `mensagemId`, porque não existe rota de "ver mensagem isolada", só de "ver chat da solicitação".
+- **Ownership por design, não por validação condicional:** toda query já filtra por `usuarioId` do autenticado (nunca aceita `usuarioId` de parâmetro). Tentar marcar como lida notificação de outro usuário retorna 404 (`NotificacaoNaoEncontradaException`), não 403 — mesma mitigação de IDOR já usada em `ItemCarrinho`.
+- Listagem sempre paginada (`Page`), com índice composto `(usuario_id, visualizada)` no banco desde a criação da tabela — não é otimização adiada, porque o volume de notificação cresce rápido (uma por mensagem de chat).
 
 > **Nota de escopo — `Anexo` não é polimórfico nesta fase.** Cogitamos generalizar `Anexo` para servir tanto `Mensagem` quanto um futuro `Post` de divulgação (ver Fase 5), o que exigiria um modelo polimórfico (`entidadeTipo` + `entidadeId` em vez de FK direta), abrindo mão de integridade referencial garantida pelo banco em troca de flexibilidade. Decisão tomada: **não fazer isso agora.** `Anexo` fica vinculado só a `Mensagem`, com FK real. Quando a Fase 5 for iniciada de fato, a modelagem de `Anexo` é revisada com o desenho de `Post` já definido, evitando complexidade prematura para um requisito que ainda não tinha forma.
 

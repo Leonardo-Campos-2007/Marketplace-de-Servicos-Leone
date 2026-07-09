@@ -4,6 +4,7 @@ import com.br.leone.entity.Chat;
 import com.br.leone.entity.Mensagem;
 import com.br.leone.entity.PerfilPrestador;
 import com.br.leone.entity.SolicitacaoServico;
+import com.br.leone.enums.TipoNotificacao;
 import com.br.leone.exception.AcessoChatNegadoException;
 import com.br.leone.exception.ChatEncerradoException;
 import com.br.leone.exception.ChatNaoEncontradoException;
@@ -28,15 +29,18 @@ public class ChatService {
     private final MensagemRepository mensagemRepository;
     private final SolicitacaoServicoRepository solicitacaoServicoRepository;
     private final PerfilPrestadorRepository perfilPrestadorRepository;
+    private final NotificacaoService notificacaoService;
 
     public ChatService(ChatRepository chatRepository,
                        MensagemRepository mensagemRepository,
                        SolicitacaoServicoRepository solicitacaoServicoRepository,
-                       PerfilPrestadorRepository perfilPrestadorRepository) {
+                       PerfilPrestadorRepository perfilPrestadorRepository,
+                       NotificacaoService notificacaoService) {
         this.chatRepository = chatRepository;
         this.mensagemRepository = mensagemRepository;
         this.solicitacaoServicoRepository = solicitacaoServicoRepository;
         this.perfilPrestadorRepository = perfilPrestadorRepository;
+        this.notificacaoService = notificacaoService;
     }
 
     @Transactional
@@ -86,7 +90,14 @@ public class ChatService {
         }
 
         Mensagem mensagem = new Mensagem(chat.getId(), remetenteId, conteudo);
-        return mensagemRepository.save(mensagem);
+        Mensagem salva = mensagemRepository.save(mensagem);
+
+        Long destinatarioId = determinarDestinatarioMensagem(chat, remetenteId);
+        if (destinatarioId != null) {
+            notificacaoService.notificar(destinatarioId, TipoNotificacao.MENSAGEM_NOVA, chat.getSolicitacaoId());
+        }
+
+        return salva;
     }
 
     private Chat buscarChatOuLancar(Long solicitacaoId) {
@@ -118,5 +129,20 @@ public class ChatService {
         }
 
         throw new AcessoChatNegadoException();
+    }
+
+    private Long determinarDestinatarioMensagem(Chat chat, Long remetenteId) {
+        SolicitacaoServico solicitacao = solicitacaoServicoRepository.findById(chat.getSolicitacaoId()).orElse(null);
+        if (solicitacao == null) {
+            return null;
+        }
+
+        boolean remetenteEhComprador = Objects.equals(solicitacao.getCompradorId(), remetenteId);
+        if (remetenteEhComprador) {
+            return perfilPrestadorRepository.findById(solicitacao.getPerfilPrestadorId())
+                    .map(PerfilPrestador::getUsuarioId)
+                    .orElse(null);
+        }
+        return solicitacao.getCompradorId();
     }
 }
