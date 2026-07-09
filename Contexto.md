@@ -143,9 +143,17 @@ com.br.leone
 
 **Fase 2 — concluída e testada:** `Carrinho`, `ItemCarrinho`, `SolicitacaoServico`, `ItemSolicitacao`, `HistoricoStatusSolicitacao`.
 
-**Fase 3 — próxima:** `Chat`, `Mensagem`, vinculados a `SolicitacaoServico`, peer-to-peer entre comprador e prestador.
+**Fase 3 — concluída e testada:** `Chat`, `Mensagem`, vinculados a `SolicitacaoServico`, peer-to-peer entre comprador e prestador. Encerramento automático do chat quando a solicitação atinge estado final; histórico permanece legível mesmo encerrado. Admin lê para moderação, mas não envia mensagem.
 
-**Fase 4:** `Notificacao` (campo de tipo/enum, não texto livre), `Anexo`, WebSocket para chat em tempo real.
+**Fase 4 — em andamento:** `Notificacao` (campo de tipo/enum, não texto livre) e `Anexo` **vinculados apenas a `Mensagem`** (decisão de escopo — ver nota abaixo), mais WebSocket para chat/notificação em tempo real.
+
+> **Nota de escopo — `Anexo` não é polimórfico nesta fase.** Cogitamos generalizar `Anexo` para servir tanto `Mensagem` quanto um futuro `Post` de divulgação (ver Fase 5), o que exigiria um modelo polimórfico (`entidadeTipo` + `entidadeId` em vez de FK direta), abrindo mão de integridade referencial garantida pelo banco em troca de flexibilidade. Decisão tomada: **não fazer isso agora.** `Anexo` fica vinculado só a `Mensagem`, com FK real. Quando a Fase 5 for iniciada de fato, a modelagem de `Anexo` é revisada com o desenho de `Post` já definido, evitando complexidade prematura para um requisito que ainda não tinha forma.
+
+**Fase 5 — futura, ainda não modelada:** funcionalidade de "rede social leve" para prestadores divulgarem serviços. Inclui, no mínimo:
+- **`Seguidor`** (ou nome equivalente): relação muitos-para-muitos entre `User` (quem segue) e `PerfilPrestador` (quem é seguido). Decisões em aberto: se é possível deixar de seguir, se gera notificação ao ganhar seguidor ou só ao postar.
+- **`Post`**: divulgação de propaganda pelo prestador, com imagem (via `Anexo`, quando este for generalizado). Decisões em aberto: se pertence ao `PerfilPrestador` em geral ou a um `Servico` específico; se tem moderação (como `CategoriaServico`, pendente até aprovação) ou publica direto; se é editável/deletável depois de postado.
+- Ao postar, `Notificacao` do tipo `NOVO_POST_PRESTADOR_SEGUIDO` (ou equivalente) para todos os seguidores daquele prestador.
+- Esta fase só deve começar depois que as decisões acima estiverem fechadas com a mesma clareza que tivemos para `User`/`PerfilPrestador`/`CategoriaServico` antes de codificar.
 
 **Transversal:** `Pagamento`. `SolicitacaoServico` já separa comissão e valor líquido, mas não há integração de gateway nem rastreio de recebimento real — os valores hoje são só calculados e armazenados.
 

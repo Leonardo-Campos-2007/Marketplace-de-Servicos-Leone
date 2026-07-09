@@ -13,12 +13,12 @@ import com.br.leone.repository.MensagemRepository;
 import com.br.leone.repository.PerfilPrestadorRepository;
 import com.br.leone.repository.SolicitacaoServicoRepository;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.List;
 import java.util.Objects;
 
 @Service
@@ -59,26 +59,27 @@ public class ChatService {
     @Transactional
     public Page<Mensagem> buscarMensagens(Long solicitacaoId, Long usuarioId, boolean isAdmin, Pageable pageable) {
         Chat chat = buscarChatOuLancar(solicitacaoId);
-        validarAcesso(chat, usuarioId, isAdmin);
+        validarAcessoLeitura(chat, usuarioId, isAdmin);
 
-        Pageable comOrdem = org.springframework.data.domain.PageRequest.of(
+        Pageable comOrdem = PageRequest.of(
                 pageable.getPageNumber(), pageable.getPageSize(), Sort.by("dataEnvio").ascending());
 
         Page<Mensagem> pagina = mensagemRepository.findByChatId(chat.getId(), comOrdem);
 
-        List<Mensagem> naoLidas = mensagemRepository
-                .findByChatIdAndLidaFalseAndRemetenteIdNot(chat.getId(), usuarioId);
-        naoLidas.forEach(m -> {
-            m.setLida(true);
-            mensagemRepository.save(m);
-        });
+        mensagemRepository.marcarComoLidas(chat.getId(), usuarioId);
 
         return pagina;
     }
+
     @Transactional
-    public Mensagem enviarMensagem(Long solicitacaoId, Long remetenteId, String conteudo) {
+    public Mensagem enviarMensagem(Long solicitacaoId, Long remetenteId, boolean isAdmin, String conteudo) {
         Chat chat = buscarChatOuLancar(solicitacaoId);
-        validarAcesso(chat, remetenteId, false);
+
+        if (isAdmin) {
+            throw new AcessoChatNegadoException("Administradores podem visualizar o chat para moderação, mas não podem enviar mensagens.");
+        }
+
+        validarParticipante(chat, remetenteId);
 
         if (!chat.getAtivo()) {
             throw new ChatEncerradoException();
@@ -93,11 +94,14 @@ public class ChatService {
                 .orElseThrow(() -> new ChatNaoEncontradoException(solicitacaoId));
     }
 
-    private void validarAcesso(Chat chat, Long usuarioId, boolean isAdmin) {
+    private void validarAcessoLeitura(Chat chat, Long usuarioId, boolean isAdmin) {
         if (isAdmin) {
             return;
         }
+        validarParticipante(chat, usuarioId);
+    }
 
+    private void validarParticipante(Chat chat, Long usuarioId) {
         SolicitacaoServico solicitacao = solicitacaoServicoRepository.findById(chat.getSolicitacaoId())
                 .orElseThrow(() -> new SolicitacaoNaoEncontradaException(chat.getSolicitacaoId()));
 

@@ -129,3 +129,15 @@ CREATE TABLE IF NOT EXISTS mensagem (
                                         CONSTRAINT fk_mensagem_chat FOREIGN KEY (chat_id) REFERENCES chat(id) ON DELETE CASCADE,
     CONSTRAINT fk_mensagem_remetente FOREIGN KEY (remetente_id) REFERENCES users(id)
     );
+
+
+CREATE TABLE IF NOT EXISTS notificacao (
+                                           id            BIGINT AUTO_INCREMENT PRIMARY KEY,
+                                           usuario_id    BIGINT       NOT NULL,
+                                           tipo          VARCHAR(50)  NOT NULL,
+    referencia_id BIGINT       NOT NULL,
+    visualizada   BOOLEAN      NOT NULL DEFAULT FALSE,
+    data_criacao  DATETIME     NOT NULL,
+    CONSTRAINT fk_notificacao_usuario FOREIGN KEY (usuario_id) REFERENCES users(id) ON DELETE CASCADE,
+    INDEX idx_notificacao_usuario_visualizada (usuario_id, visualizada)
+    );

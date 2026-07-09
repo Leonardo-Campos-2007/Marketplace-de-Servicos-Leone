@@ -60,7 +60,8 @@ public class ChatController {
             @AuthenticationPrincipal UserDetails userDetails) {
 
         Long usuarioId = obterUsuarioId(userDetails);
-        Mensagem mensagem = chatService.enviarMensagem(solicitacaoId, usuarioId, dto.conteudo());
+        boolean isAdmin = isAdmin(userDetails);
+        Mensagem mensagem = chatService.enviarMensagem(solicitacaoId, usuarioId, isAdmin, dto.conteudo());
         return ResponseEntity.status(HttpStatus.CREATED).body(new MensagemResponseDTO(mensagem));
     }
 
