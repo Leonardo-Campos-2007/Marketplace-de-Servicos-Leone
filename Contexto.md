@@ -192,11 +192,18 @@ com.br.leone
 
 ---
 
-## 11. Lições de Depuração
+## 12. Documentação da API (Swagger/OpenAPI)
 
-- **403 sem corpo JSON não é 403 de negócio.** Todo 403 tratado pelo `GlobalExceptionHandler` sempre retorna `{"erro": "..."}`. Corpo vazio significa que a exceção nunca chegou ao handler — geralmente é erro de infraestrutura (ex.: transação `readOnly`) mascarado por tratamento genérico do servlet container, não recusa de autorização real.
-- **Antes de suspeitar de token JWT, confirme que o mesmo token funciona em outra rota na mesma sessão de teste.** Se funciona numa rota e falha em outra, o token não é o problema.
-- **Dado inconsistente de testes anteriores a uma correção de máquina de estados pode gerar falso-negativo no reteste.** Se uma transição que deveria funcionar continua recusada após a correção, verificar se o registro de teste já estava num estado que só existia por causa do bug antigo. Recriar o dado do zero antes de concluir que a correção falhou.
+Integrado via `springdoc-openapi-starter-webmvc-ui`, versão **3.0.3** (não a linha 2.x — ver lição abaixo). Acessível em `/swagger-ui.html`, especificação JSON em `/v3/api-docs`.
+
+- `OpenApiConfig.java` define metadados básicos e o esquema de segurança `bearerAuth`, que faz o Swagger UI mostrar um botão "Authorize" para colar o token JWT uma vez e reutilizá-lo em todas as requisições de teste feitas pela interface.
+- Rotas `/swagger-ui.html`, `/swagger-ui/**`, `/v3/api-docs` e `/v3/api-docs/**` liberadas como públicas no `SecurityConfig`, para não exigir login só para ver a documentação em desenvolvimento.
+- **Isso precisa ser revisado antes de qualquer deploy real.** Documentação de API aberta publicamente na internet expõe a superfície inteira do sistema (endpoints, DTOs, estrutura) para qualquer um. Em produção, considerar `springdoc.api-docs.enabled=false` e `springdoc.swagger-ui.enabled=false` (propriedades que o próprio Springdoc já expõe, confirmadas via warning no log de inicialização), ou manter acessível só via rede interna/VPN.
+
+## 13. Lições de Depuração — Dependências e Versão
+
+- **Ao adicionar qualquer biblioteca de terceiros, confirmar a linha de versão compatível com Spring Boot 4.x / Spring Framework 7.x antes de fixar a versão no `pom.xml`.** Bug real já cometido: `springdoc-openapi 2.6.0` (linha compatível com Spring Boot 3.x/Spring Framework 6.x) foi adicionado inicialmente, compilou e a aplicação subiu sem erro — mas quebrou em runtime com `NoSuchMethodError: ControllerAdviceBean.<init>` só ao acessar `/v3/api-docs`, porque essa classe do Spring Framework mudou de assinatura entre as versões 6.x e 7.x. **A lição prática:** compilar sem erro não é garantia de compatibilidade de runtime entre uma biblioteca de terceiros e uma versão major nova do Spring; a falha só aparece quando o código da biblioteca de fato executa o caminho que usa a API que mudou. A correção foi migrar para a linha 3.x do Springdoc (`3.0.3`), que já suporta Spring Boot 4 nativamente.
+- **Um "403 Forbidden" reportado pelo navegador/cliente nem sempre é o status HTTP real vindo do backend.** Nesse mesmo episódio, o Swagger UI exibiu "response status is 403" enquanto o log do backend mostrava uma exceção não tratada (`NoSuchMethodError`) que deveria ter gerado 500. A causa provável é alguma camada intermediária (o próprio tratamento de erro do servlet container ou do cliente) mascarando o status real. **Regra prática: sempre confirmar a causa no log do servidor antes de aceitar o status reportado pela interface cliente como verdade absoluta**, principalmente quando o comportamento não bate com o que a configuração do código sugere.
 
 ---
 

@@ -141,3 +141,16 @@ CREATE TABLE IF NOT EXISTS notificacao (
     CONSTRAINT fk_notificacao_usuario FOREIGN KEY (usuario_id) REFERENCES users(id) ON DELETE CASCADE,
     INDEX idx_notificacao_usuario_visualizada (usuario_id, visualizada)
     );
+
+
+CREATE TABLE IF NOT EXISTS anexo (
+                                     id                       BIGINT AUTO_INCREMENT PRIMARY KEY,
+                                     mensagem_id              BIGINT       NOT NULL UNIQUE,
+                                     nome_arquivo_original    VARCHAR(255) NOT NULL,
+    nome_arquivo_armazenado  VARCHAR(255) NOT NULL,
+    url_arquivo              VARCHAR(500) NOT NULL,
+    tipo_conteudo            VARCHAR(100) NOT NULL,
+    tamanho_bytes            BIGINT       NOT NULL,
+    data_upload              DATETIME     NOT NULL,
+    CONSTRAINT fk_anexo_mensagem FOREIGN KEY (mensagem_id) REFERENCES mensagem(id) ON DELETE CASCADE
+    );

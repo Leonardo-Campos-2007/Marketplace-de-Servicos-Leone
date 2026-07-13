@@ -175,5 +175,26 @@ public class GlobalExceptionHandler {
                 .body(Map.of("erro", ex.getMessage()));
     }
 
+    @ExceptionHandler(ArquivoInvalidoException.class)
+    public ResponseEntity<Map<String, String>> handleArquivoInvalido(ArquivoInvalidoException ex) {
+        return ResponseEntity
+                .status(HttpStatus.BAD_REQUEST)
+                .body(Map.of("erro", ex.getMessage()));
+    }
+
+    @ExceptionHandler(AnexoJaExisteException.class)
+    public ResponseEntity<Map<String, String>> handleAnexoJaExiste(AnexoJaExisteException ex) {
+        return ResponseEntity
+                .status(HttpStatus.CONFLICT)
+                .body(Map.of("erro", ex.getMessage()));
+    }
+
+    @ExceptionHandler(AnexoNaoEncontradoException.class)
+    public ResponseEntity<Map<String, String>> handleAnexoNaoEncontrado(AnexoNaoEncontradoException ex) {
+        return ResponseEntity
+                .status(HttpStatus.NOT_FOUND)
+                .body(Map.of("erro", ex.getMessage()));
+    }
+
 }
 

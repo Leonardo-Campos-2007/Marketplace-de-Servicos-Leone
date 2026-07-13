@@ -112,7 +112,7 @@ public class ChatService {
         validarParticipante(chat, usuarioId);
     }
 
-    private void validarParticipante(Chat chat, Long usuarioId) {
+    public void validarParticipante(Chat chat, Long usuarioId) {
         SolicitacaoServico solicitacao = solicitacaoServicoRepository.findById(chat.getSolicitacaoId())
                 .orElseThrow(() -> new SolicitacaoNaoEncontradaException(chat.getSolicitacaoId()));
 
