@@ -145,7 +145,7 @@ com.br.leone
 
 **Fase 3 — concluída e testada:** `Chat`, `Mensagem`, vinculados a `SolicitacaoServico`, peer-to-peer entre comprador e prestador. Encerramento automático do chat quando a solicitação atinge estado final; histórico permanece legível mesmo encerrado. Admin lê para moderação, mas não envia mensagem.
 
-**Fase 4 — em andamento:** `Notificacao` **concluída e testada**. `Anexo` **concluída e testada** (vinculado apenas a `Mensagem` — ver nota de escopo abaixo). WebSocket ainda pendente.
+**Fase 4 — concluída no backend, teste do WebSocket pendente:** `Notificacao` **concluída e testada**. `Anexo` **concluída e testada** (vinculado apenas a `Mensagem` — ver nota de escopo abaixo). WebSocket **implementado e compilando, teste end-to-end adiado até a integração com o frontend React** (ver detalhes ao final desta seção).
 
 **`Anexo`** — implementada.
 - Vinculado só a `Mensagem`, um anexo por mensagem (constraint `UNIQUE` real no banco em `mensagem_id`, não só checagem em `Service`).
@@ -157,8 +157,6 @@ com.br.leone
 - Rollback manual se o banco falhar depois do disco já ter gravado (`AnexoService.anexar`): disco e banco não são atômicos juntos, então a exceção no `save()` aciona `armazenamentoService.deletar(urlArquivo)` antes de propagar o erro, evitando arquivo órfão.
 - **Pendência de teste:** validação de negócio de 5MB (arquivo entre 5MB e o limite de servidor de 10MB) ainda não confirmada empiricamente por falta de arquivo de teste grande o suficiente à mão. A lógica está implementada e revisada, só falta a confirmação via Postman.
 
-> **Nota de escopo — `Anexo` não é polimórfico nesta fase.** Cogitamos generalizar `Anexo` para servir tanto `Mensagem` quanto um futuro `Post` de divulgação (ver Fase 5), o que exigiria um modelo polimórfico (`entidadeTipo` + `entidadeId` em vez de FK direta), abrindo mão de integridade referencial garantida pelo banco em troca de flexibilidade. Decisão tomada: **não fazer isso agora.** `Anexo` fica vinculado só a `Mensagem`, com FK real. Quando a Fase 5 for iniciada de fato, a modelagem de `Anexo` é revisada com o desenho de `Post` já definido, evitando complexidade prematura para um requisito que ainda não tinha forma.
-
 **`Notificacao`** — implementada.
 - Nunca criada por endpoint direto; sempre disparada internamente por `SolicitacaoServicoService.alterarStatus` (nas transições `ACEITA`, `EM_ANDAMENTO`, `CONCLUIDA`, `CANCELADA`) e por `ChatService.enviarMensagem` (toda mensagem nova).
 - **Best-effort by design:** `NotificacaoService.notificar(...)` captura qualquer exceção internamente e só loga o erro, nunca deixa a falha de notificação reverter a transação da operação principal (enviar mensagem, mudar status). Isso é proposital — perder uma notificação é aceitável, perder a operação de negócio que a originou não é.
@@ -168,6 +166,15 @@ com.br.leone
 - Listagem sempre paginada (`Page`), com índice composto `(usuario_id, visualizada)` no banco desde a criação da tabela — não é otimização adiada, porque o volume de notificação cresce rápido (uma por mensagem de chat).
 
 > **Nota de escopo — `Anexo` não é polimórfico nesta fase.** Cogitamos generalizar `Anexo` para servir tanto `Mensagem` quanto um futuro `Post` de divulgação (ver Fase 5), o que exigiria um modelo polimórfico (`entidadeTipo` + `entidadeId` em vez de FK direta), abrindo mão de integridade referencial garantida pelo banco em troca de flexibilidade. Decisão tomada: **não fazer isso agora.** `Anexo` fica vinculado só a `Mensagem`, com FK real. Quando a Fase 5 for iniciada de fato, a modelagem de `Anexo` é revisada com o desenho de `Post` já definido, evitando complexidade prematura para um requisito que ainda não tinha forma.
+
+**`WebSocket`** — implementado no backend, sem teste end-to-end ainda.
+- STOMP sobre SockJS (`spring-boot-starter-websocket`), endpoint `/ws`, broker simples embutido (`/topic`, `/queue`) — suficiente para uma instância só da aplicação; migrar para broker externo (RabbitMQ) só se e quando houver múltiplas instâncias atrás de load balancer.
+- **Autenticação no frame STOMP `CONNECT`, nunca em query string** (query string vaza token em log de proxy/CDN). `WebSocketAuthInterceptor` (`ChannelInterceptor`) valida o JWT do header `Authorization` do frame `CONNECT` e popula o `Principal` da sessão com `UsernamePasswordAuthenticationToken`.
+- **Roteamento de notificação pessoal usa e-mail, não `usuarioId`.** `SimpMessagingTemplate.convertAndSendToUser` identifica a sessão destino por `Principal.getName()`, que no `CustomUserDetailsService` deste projeto é o e-mail (username de login), não o ID numérico. `NotificacaoPushService.enviarNotificacaoParaUsuario` recebe `emailUsuario` (String) por esse motivo — passar `usuarioId` faria o push nunca encontrar a sessão certa.
+- **`NotificacaoPushService` isola toda dependência de `SimpMessagingTemplate`**, mantendo `ChatService` e `NotificacaoService` agnósticos de transporte — os dois só chamam um método simples depois do `save()` no banco, sem saber como (ou se) o dado chega ao cliente em tempo real. Push é sempre best-effort, mesmo padrão de `try/catch` + log que já vale para `Notificacao`.
+- Endpoint `/ws/**` liberado no `SecurityConfig` para o handshake HTTP inicial (o SockJS precisa disso), mas isso não é brecha: nenhuma mensagem STOMP é processada sem passar pelo `WebSocketAuthInterceptor`, que valida o JWT antes de aceitar qualquer `CONNECT`.
+- Assinatura de canal de chat (`/topic/chat/{solicitacaoId}`) deveria ser validada por participante no momento do `SUBSCRIBE` (mesma checagem de `ChatService.validarParticipante`) — **isso ainda não foi implementado**, ficou fora do escopo desta rodada. Hoje, tecnicamente, qualquer usuário autenticado que descobrir o `solicitacaoId` de outra pessoa poderia se inscrever no tópico dela, já que só o handshake é autenticado, não a assinatura por canal individual. Tratar isso antes de considerar o WebSocket pronto para produção.
+- **Teste end-to-end adiado deliberadamente até a integração com o frontend React**, porque validar WebSocket exige um cliente real mantendo sessão — replicar isso numa página HTML descartável seria refazer o trabalho que o frontend já vai fazer. Backend compila e sobe sem erro, broker STOMP confirmado disponível no log de inicialização, mas nenhum fluxo de mensagem/notificação em tempo real foi confirmado ponta a ponta ainda.
 
 **Fase 5 — futura, ainda não modelada:** funcionalidade de "rede social leve" para prestadores divulgarem serviços. Inclui, no mínimo:
 - **`Seguidor`** (ou nome equivalente): relação muitos-para-muitos entre `User` (quem segue) e `PerfilPrestador` (quem é seguido). Decisões em aberto: se é possível deixar de seguir, se gera notificação ao ganhar seguidor ou só ao postar.

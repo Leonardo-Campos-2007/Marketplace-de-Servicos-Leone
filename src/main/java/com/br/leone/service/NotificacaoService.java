@@ -1,5 +1,7 @@
 package com.br.leone.service;
 
+import com.br.leone.dto.NotificacaoResponseDTO;
+import com.br.leone.dto.UserResponseDTO;
 import com.br.leone.entity.Notificacao;
 import com.br.leone.enums.TipoNotificacao;
 import com.br.leone.exception.NotificacaoNaoEncontradaException;
@@ -19,9 +21,13 @@ public class NotificacaoService {
     private static final Logger log = LoggerFactory.getLogger(NotificacaoService.class);
 
     private final NotificacaoRepository notificacaoRepository;
+    private final NotificacaoPushService notificacaoPushService;
+    private final UserService userService;
 
-    public NotificacaoService(NotificacaoRepository notificacaoRepository) {
+    public NotificacaoService(NotificacaoRepository notificacaoRepository, NotificacaoPushService notificacaoPushService, UserService userService) {
         this.notificacaoRepository = notificacaoRepository;
+        this.notificacaoPushService = notificacaoPushService;
+        this.userService = userService;
     }
 
     /**
@@ -29,15 +35,7 @@ public class NotificacaoService {
      * da operação que a originou (ex.: enviar mensagem, alterar status de solicitação).
      * Por isso captura qualquer exceção e apenas loga, ao invés de propagar.
      */
-    public void notificar(Long usuarioId, TipoNotificacao tipo, Long referenciaId) {
-        try {
-            Notificacao notificacao = new Notificacao(usuarioId, tipo, referenciaId);
-            notificacaoRepository.save(notificacao);
-        } catch (Exception ex) {
-            log.error("Falha ao criar notificação. usuarioId={}, tipo={}, referenciaId={}",
-                    usuarioId, tipo, referenciaId, ex);
-        }
-    }
+
 
     @Transactional(readOnly = true)
     public Page<Notificacao> listar(Long usuarioId, boolean apenasNaoLidas, Pageable pageable) {
@@ -67,5 +65,19 @@ public class NotificacaoService {
     @Transactional
     public void marcarTodasComoLidas(Long usuarioId) {
         notificacaoRepository.marcarTodasComoLidas(usuarioId);
+    }
+
+    public void notificar(Long usuarioId, TipoNotificacao tipo, Long referenciaId) {
+        try {
+            Notificacao notificacao = new Notificacao(usuarioId, tipo, referenciaId);
+            Notificacao salva = notificacaoRepository.save(notificacao);
+
+            UserResponseDTO usuario = userService.buscarPorId(usuarioId);
+            notificacaoPushService.enviarNotificacaoParaUsuario(
+                    usuario.email(), new NotificacaoResponseDTO(salva));
+        } catch (Exception ex) {
+            log.error("Falha ao criar notificação. usuarioId={}, tipo={}, referenciaId={}",
+                    usuarioId, tipo, referenciaId, ex);
+        }
     }
 }

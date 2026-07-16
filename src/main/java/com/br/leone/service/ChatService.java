@@ -1,5 +1,6 @@
 package com.br.leone.service;
 
+import com.br.leone.dto.MensagemResponseDTO;
 import com.br.leone.entity.Chat;
 import com.br.leone.entity.Mensagem;
 import com.br.leone.entity.PerfilPrestador;
@@ -30,17 +31,19 @@ public class ChatService {
     private final SolicitacaoServicoRepository solicitacaoServicoRepository;
     private final PerfilPrestadorRepository perfilPrestadorRepository;
     private final NotificacaoService notificacaoService;
+    private final NotificacaoPushService notificacaoPushService;
 
     public ChatService(ChatRepository chatRepository,
                        MensagemRepository mensagemRepository,
                        SolicitacaoServicoRepository solicitacaoServicoRepository,
                        PerfilPrestadorRepository perfilPrestadorRepository,
-                       NotificacaoService notificacaoService) {
+                       NotificacaoService notificacaoService, NotificacaoPushService notificacaoPushService) {
         this.chatRepository = chatRepository;
         this.mensagemRepository = mensagemRepository;
         this.solicitacaoServicoRepository = solicitacaoServicoRepository;
         this.perfilPrestadorRepository = perfilPrestadorRepository;
         this.notificacaoService = notificacaoService;
+        this.notificacaoPushService = notificacaoPushService;
     }
 
     @Transactional
@@ -91,6 +94,8 @@ public class ChatService {
 
         Mensagem mensagem = new Mensagem(chat.getId(), remetenteId, conteudo);
         Mensagem salva = mensagemRepository.save(mensagem);
+
+        notificacaoPushService.enviarMensagemParaChat(chat.getSolicitacaoId(), new MensagemResponseDTO(salva));
 
         Long destinatarioId = determinarDestinatarioMensagem(chat, remetenteId);
         if (destinatarioId != null) {
